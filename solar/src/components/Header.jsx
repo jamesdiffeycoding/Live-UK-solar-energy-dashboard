@@ -52,7 +52,9 @@ export default function Header({ peakData }) {
           <div className="supersmalltext text-slate-900">
             {peakFromMonthDayAndTime}-{endOfPeakWindowMonth}
           </div>
-          <div className="pt-1">
+          {/*   // TODO: update options if year becomes available
+           */}
+          {/* <div className="pt-1">
             365 days:
             <span className="text-yellow-500">
               {` ${peakFromYear.toFixed(0)}`} MW
@@ -60,7 +62,7 @@ export default function Header({ peakData }) {
           </div>
           <div className="supersmalltext text-slate-900">
             {peakFromYearDayAndTime}-{endOfPeakWindowYear}
-          </div>
+          </div> */}
           <hr
             className="pt-1 pb-1 hide-when-portrait"
             style={{ borderTop: "dotted 1.5px" }}
