@@ -7,7 +7,15 @@ export default function Header({ views, availableRanges }) {
   return (
     <section className="flex justify-between p-8 text-sm">
       <section>
-        <h1 className="font-bold text-3xl">AWESUN</h1>
+        {/* AWESOME with "ome" struck out and "un" added reads as AWESUN.
+            Mirrors the AWFUL treatment on the error page. */}
+        <h1 className="font-bold text-3xl" aria-label="Awesun">
+          <span aria-hidden="true">
+            AWES
+            <span className="line-through decoration-2 opacity-50">OME</span>
+            UN
+          </span>
+        </h1>
         <p>Visualising the UK's solar energy</p>
         <p className="italic text-slate-900 hide-when-portrait">
           Data provided by the University of Sheffield.

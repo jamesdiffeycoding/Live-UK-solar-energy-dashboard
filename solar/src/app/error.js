@@ -7,7 +7,14 @@ export default function Error({ error, reset }) {
     <>
       <div className="backgroundGradient -z-30"></div>
       <main className="flex h-screen flex-col items-center justify-center p-8 text-center">
-        <h1 className="text-3xl font-bold">AWESUN</h1>
+        {/* AWESUN with "esun" struck out and "ful" added reads as AWFUL. */}
+        <h1 className="text-3xl font-bold" aria-label="Awful">
+          <span aria-hidden="true">
+            AW
+            <span className="line-through decoration-2 opacity-50">ESUN</span>
+            FUL
+          </span>
+        </h1>
         <p className="pt-4">Something went wrong loading the solar data.</p>
         <button
           onClick={reset}
