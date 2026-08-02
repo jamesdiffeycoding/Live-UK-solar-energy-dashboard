@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
   createColumnHelper,
   flexRender,
@@ -104,10 +104,21 @@ function downloadCsv(records, filename) {
   URL.revokeObjectURL(url);
 }
 
+// Never show fewer than this, however short the window gets: a two-row page
+// with a pager under it is worse than a page that scrolls a little.
+const MIN_PAGE_SIZE = 5;
+const FALLBACK_ROW_HEIGHT = 25;
+
 export default function DataTable({ dataToDisplay, peakValue, range }) {
   const [sorting, setSorting] = useState([{ id: "day", desc: true }]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [minMegawatts, setMinMegawatts] = useState("");
+
+  const shellRef = useRef(null);
+  const filtersRef = useRef(null);
+  const theadRef = useRef(null);
+  const tbodyRef = useRef(null);
+  const pagerRef = useRef(null);
 
   const data = useMemo(
     () => dataToDisplay.map((row) => toRecord(row, peakValue)),
@@ -127,6 +138,69 @@ export default function DataTable({ dataToDisplay, peakValue, range }) {
     initialState: { pagination: { pageSize: 25 } },
   });
 
+  // A fixed page size leaves dead space below the pager on a tall window and
+  // overflows a short one. Measure instead: the shell is the height of its
+  // snap stop, so subtracting the fixed furniture leaves the room for rows.
+  // Held in a ref because the table object is rebuilt on every render and
+  // would otherwise retrigger the effect forever.
+  const tableRef = useRef(table);
+  tableRef.current = table;
+
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell || typeof ResizeObserver === "undefined") return;
+
+    // Measured off absolute geometry rather than by summing offsetHeights:
+    // the gap between the last header row and the pager is exactly the room
+    // available, and reading it directly keeps every sub-pixel that rounding
+    // each element separately would throw away (which cost a whole row).
+    const fitPageToShell = () => {
+      const firstRow = tbodyRef.current?.rows?.[0];
+      const thead = theadRef.current;
+      const pager = pagerRef.current;
+      if (!firstRow || !thead || !pager) return;
+
+      // Averaged over every rendered row: the first row sits under the header
+      // border and measures a pixel taller than the rest, and trusting it
+      // alone compounds into a whole missing row on a tall window.
+      const rows = tbodyRef.current.rows;
+      const lastRow = rows[rows.length - 1];
+      const spanned =
+        lastRow.getBoundingClientRect().bottom -
+        firstRow.getBoundingClientRect().top;
+      const rowHeight =
+        rows.length > 1
+          ? spanned / rows.length
+          : firstRow.getBoundingClientRect().height || FALLBACK_ROW_HEIGHT;
+      const paddingBottom = parseFloat(getComputedStyle(shell).paddingBottom);
+      const room =
+        shell.getBoundingClientRect().bottom -
+        paddingBottom -
+        pager.getBoundingClientRect().height -
+        thead.getBoundingClientRect().bottom;
+
+      const fits = Math.max(MIN_PAGE_SIZE, Math.floor(room / rowHeight));
+      if (fits !== tableRef.current.getState().pagination.pageSize) {
+        tableRef.current.setPageSize(fits);
+      }
+    };
+
+    // Changing the page size moves the pager, so one settle pass converges on
+    // the true fit instead of stopping a row short.
+    const settle = () => {
+      fitPageToShell();
+      requestAnimationFrame(fitPageToShell);
+    };
+
+    settle();
+
+    // The shell tracks the viewport, not its own contents, so resizing the
+    // page cannot feed back into another resize.
+    const observer = new ResizeObserver(settle);
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, []);
+
   // The MW floor is applied on top of whatever the table already filtered, so
   // the count and the export always agree with what is on screen.
   const threshold = minMegawatts === "" ? null : Number(minMegawatts);
@@ -143,8 +217,8 @@ export default function DataTable({ dataToDisplay, peakValue, range }) {
   ).map((row) => row.original);
 
   return (
-    <section className="h-full w-full overflow-auto bg-slate-900/80 px-4 pb-3 pt-3 backdrop-blur-sm">
-      <div className="flex flex-wrap items-end justify-between gap-3 pb-3 text-xs">
+    <section ref={shellRef} className="h-full w-full overflow-auto bg-slate-900/80 px-4 pb-3 pt-3 backdrop-blur-sm">
+      <div ref={filtersRef} className="flex flex-wrap items-end justify-between gap-3 pb-3 text-xs">
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col">
             <span className="pb-1 text-slate-300">Search</span>
@@ -180,7 +254,7 @@ export default function DataTable({ dataToDisplay, peakValue, range }) {
       </div>
 
       <table className="w-full border-collapse text-xs">
-        <thead className="sticky top-0 bg-slate-900">
+        <thead ref={theadRef} className="sticky top-0 bg-slate-900">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
@@ -211,7 +285,7 @@ export default function DataTable({ dataToDisplay, peakValue, range }) {
             </tr>
           ))}
         </thead>
-        <tbody>
+        <tbody ref={tbodyRef}>
           {visibleRows.length === 0 && (
             <tr>
               <td
@@ -241,7 +315,7 @@ export default function DataTable({ dataToDisplay, peakValue, range }) {
         </tbody>
       </table>
 
-      <div className="flex items-center justify-center gap-3 pt-3 text-xs">
+      <div ref={pagerRef} className="flex items-center justify-center gap-3 pt-3 text-xs">
         <button
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
