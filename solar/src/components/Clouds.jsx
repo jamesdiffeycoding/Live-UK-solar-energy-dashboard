@@ -1,5 +1,5 @@
 "use client";
-import { SKY_TRANSITION } from "./skyTiming";
+import { SKY_TRANSITION_VAR } from "./skyTiming";
 import "../App.css";
 
 const Clouds = ({ cloudOpacityState, nightness = 0 }) => {
@@ -21,7 +21,7 @@ const Clouds = ({ cloudOpacityState, nightness = 0 }) => {
             position: "relative",
             opacity: `${cloudOpacityState}%`,
             filter: nightFilter,
-            transition: `opacity ${SKY_TRANSITION}, filter ${SKY_TRANSITION}`,
+            transition: `opacity ${SKY_TRANSITION_VAR}, filter ${SKY_TRANSITION_VAR}`,
 
             left: `0%`,
           }}
@@ -37,7 +37,7 @@ const Clouds = ({ cloudOpacityState, nightness = 0 }) => {
             position: "relative",
             opacity: `${cloudOpacityState}%`,
             filter: nightFilter,
-            transition: `opacity ${SKY_TRANSITION}, filter ${SKY_TRANSITION}`,
+            transition: `opacity ${SKY_TRANSITION_VAR}, filter ${SKY_TRANSITION_VAR}`,
 
             left: `100%`,
           }}
@@ -53,7 +53,7 @@ const Clouds = ({ cloudOpacityState, nightness = 0 }) => {
             position: "relative",
             opacity: `${cloudOpacityState}%`,
             filter: nightFilter,
-            transition: `opacity ${SKY_TRANSITION}, filter ${SKY_TRANSITION}`,
+            transition: `opacity ${SKY_TRANSITION_VAR}, filter ${SKY_TRANSITION_VAR}`,
 
             left: `-100%`,
           }}
@@ -69,7 +69,7 @@ const Clouds = ({ cloudOpacityState, nightness = 0 }) => {
             position: "relative",
             opacity: `${cloudOpacityState}%`,
             filter: nightFilter,
-            transition: `opacity ${SKY_TRANSITION}, filter ${SKY_TRANSITION}`,
+            transition: `opacity ${SKY_TRANSITION_VAR}, filter ${SKY_TRANSITION_VAR}`,
             left: `-200%`,
           }}
         />

@@ -77,8 +77,13 @@ function GraphInner({
   labelFormatter,
   labelScheme,
   handleBarHover,
+  playingIndex = null,
+  playStepMs = 200,
 }) {
   const [hoveredIndex, setHoveredIndex] = useState(null);
+  // The pointer wins while it is over the plot; otherwise the marker follows
+  // whichever reading the run is on.
+  const markedIndex = hoveredIndex ?? playingIndex;
   const innerHeight = height;
 
   const times = useMemo(
@@ -175,14 +180,22 @@ function GraphInner({
 
       {/* Drawn over the bars rather than behind them: an opaque highlight
           would be hidden by the very bar it is meant to be marking. */}
-      {hoveredIndex !== null && (
+      {markedIndex !== null && (
         <rect
-          x={xScale(times[hoveredIndex])}
+          x={xScale(times[markedIndex])}
           y={0}
           width={Math.max(2, barWidth)}
           height={innerHeight}
           fill="rgb(255, 182, 80)"
           fillOpacity={0.45}
+          // Takes exactly one step to cross to the next reading, so a run reads
+          // as one marker travelling the series at a steady rate rather than
+          // hopping and waiting. Only while playing: a pointer needs the
+          // marker under it immediately.
+          style={{
+            transition:
+              playingIndex === null ? "none" : `x ${playStepMs}ms linear`,
+          }}
         />
       )}
 

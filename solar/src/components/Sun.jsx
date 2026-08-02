@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { SKY_TRANSITION } from "./skyTiming";
+import { SKY_TRANSITION_VAR } from "./skyTiming";
 import "../App.css";
 
 // Daylight yellow through to a cold, pale moonlight, so a disc left over at
@@ -83,7 +83,7 @@ const Sun = ({
             transform: `translate(${x}vw, ${y}vh)`,
             // Quick, so the sun keeps up with the pointer as it runs along the
             // bars.
-            transition: dayChanged ? "none" : `transform ${SKY_TRANSITION}`,
+            transition: dayChanged ? "none" : `transform ${SKY_TRANSITION_VAR}`,
           }}
         >
           <div className="heroContainer pb-square h-full flex justify-center items-center aspect-square">
@@ -97,7 +97,7 @@ const Sun = ({
                   "--sun-glow": mix(DAY_GLOW, NIGHT_GLOW, nightness),
                   "--glow-scale": glowScale,
                   backgroundColor: mix(wanDisc, NIGHT_DISC, nightness),
-                  transition: `background-color ${SKY_TRANSITION}`,
+                  transition: `background-color ${SKY_TRANSITION_VAR}`,
                 }}
               ></div>
             </div>

@@ -137,7 +137,7 @@ export default async function Page() {
             Solar data is unavailable right now. The University of Sheffield
             feed is not responding as expected.
           </p>
-          <p className="pt-2 text-sm text-slate-900">
+          <p className="pt-2 text-sm text-slate-200">
             Please try again shortly.
           </p>
         </main>

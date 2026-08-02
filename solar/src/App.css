@@ -58,7 +58,7 @@ html {
   );
   /* Matches SKY_TRANSITION in components/skyTiming.js: the dusk layer, the sun
      and the cloud tint all have to move together to read as one sky. */
-  transition: opacity 400ms ease-out;
+  transition: opacity var(--sky-transition, 400ms ease-out);
 }
 
 /* The landing panel's answer opens by growing its own row rather than by
@@ -77,6 +77,35 @@ html {
 
 .supersmalltext {
   font-size: 9px;
+}
+
+/* The struck-out letters in AWESUN and AWFUL: set smaller than the rest of
+   the title, then nudged so the small caps sit centred against the big ones
+   rather than on their baseline. */
+.struck-out {
+  display: inline-block;
+  font-size: 0.68em;
+  line-height: 1;
+  /* em-relative so it holds if the title's size changes; 0.2em is the 0.17em
+     that read slightly low, lifted by about a point at the current 30px. */
+  vertical-align: 0.2em;
+  opacity: 0.5;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+/* A native <dialog> centres itself through its own margin rule, so no
+   positioning utilities are put on it. Only what the browser does not give us
+   is set here: a dimmed backdrop, and a cap on the height so a long answer
+   scrolls inside the panel rather than off the screen. */
+.faqDialog {
+  max-height: min(80vh, 44rem);
+  overflow-y: auto;
+}
+
+.faqDialog::backdrop {
+  background: rgba(2, 6, 23, 0.6);
+  backdrop-filter: blur(2px);
 }
 
 .scroll-hint-chevron {

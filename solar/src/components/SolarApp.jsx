@@ -7,6 +7,7 @@ import Graph from "./Graph.jsx";
 import DataTable from "./DataTable.jsx";
 import GraphSelector from "./GraphSelector";
 import ScrollHint from "./ScrollHint";
+import PlayButton from "./PlayButton";
 import Landing from "./Landing";
 import BarHoveredInformation from "./BarHoveredInformation";
 import {
@@ -125,6 +126,29 @@ const NIGHT_CLOUD_THINNING = 0.75;
 // what keeps this reading as dusk rather than as a second theme.
 const NIGHT_MAX_OPACITY = 0.85;
 
+// Only the ranges whose readings are close enough together for a run to read as
+// time passing. A year is one reading per day: walking it moves the sun across
+// the whole sky every step, which is a slideshow rather than a day going by.
+const PLAYABLE_RANGES = ["week", "month"];
+
+// Playing walks the whole range at a fixed wall-clock length rather than at a
+// fixed pace per reading: a week and a month both take about this long, which
+// is what makes the two watchable. The floor keeps a long range from
+// flickering, and the ceiling keeps a short one from crawling.
+const PLAY_DURATION_MS = 150000;
+const PLAY_STEP_MIN_MS = 400;
+const PLAY_STEP_MAX_MS = 1200;
+
+// The sky's transitions are stretched to this same figure while a run is on, so
+// each reading takes the whole step to arrive. That is what keeps the sun
+// gliding rather than easing into place and then waiting.
+function playStepMs(count) {
+  return Math.min(
+    PLAY_STEP_MAX_MS,
+    Math.max(PLAY_STEP_MIN_MS, PLAY_DURATION_MS / Math.max(1, count))
+  );
+}
+
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 
 // Eased rather than linear, so the crossing has no visible corner at either end
@@ -182,6 +206,11 @@ export default function SolarApp({ views, availableRanges }) {
   // it has always sat.
   const [sunPosition, setSunPosition] = useState(0.5);
   const [sunDay, setSunDay] = useState(null);
+  // Playback walks the same readings the pointer does, so nothing about the sky
+  // needs to know whether a person or the clock is driving it.
+  const [playing, setPlaying] = useState(false);
+  const [playIndex, setPlayIndex] = useState(0);
+  const playIndexRef = useRef(0);
 
   const handleDisplay = (event) => {
     setGraphToDisplay(event.target.textContent);
@@ -212,7 +241,7 @@ export default function SolarApp({ views, availableRanges }) {
     });
   };
 
-  function handleBarHover(newValue) {
+  function applyBar(newValue) {
     const peakForComparison = views[graphToDisplay].peak;
 
     let newValueRounded = Math.ceil(newValue[2]);
@@ -241,16 +270,103 @@ export default function SolarApp({ views, availableRanges }) {
     );
   }
 
+  // Reaching for the graph by hand takes the run off the clock: two things
+  // moving the sun at once would fight each other.
+  function handleBarHover(newValue) {
+    setPlaying(false);
+    applyBar(newValue);
+  }
+
   const activeView = views[graphToDisplay];
-  const controlsVisible = isActive && stage === STAGE_GRAPH;
+  const playCount = activeView.data.length;
+  const playStep = playStepMs(playCount);
+  const canPlay = PLAYABLE_RANGES.includes(graphToDisplay);
+
+  // The readings the run steps through are kept in a ref as well as in state so
+  // the ticker can advance without being torn down and rebuilt every step.
+  const applyBarRef = useRef(applyBar);
+  applyBarRef.current = applyBar;
+
+  useEffect(() => {
+    if (!playing) return undefined;
+
+    const id = setInterval(() => {
+      const next = playIndexRef.current + 1;
+      if (next >= playCount) {
+        setPlaying(false);
+        return;
+      }
+      playIndexRef.current = next;
+      setPlayIndex(next);
+    }, playStep);
+
+    return () => clearInterval(id);
+  }, [playing, playCount, playStep]);
+
+  // Applied here rather than in the ticker so that the sky follows the index
+  // however it moved — including the jump back to the start on a fresh press.
+  useEffect(() => {
+    if (!playing) return;
+    const row = activeView.data[playIndex];
+    if (row) applyBarRef.current(row);
+  }, [playing, playIndex, activeView]);
+
+  // Switching range mid-run would leave the index pointing at a reading from a
+  // different series, so the run ends rather than jumping.
+  useEffect(() => {
+    setPlaying(false);
+  }, [graphToDisplay]);
+
+  // Scrolling back to the question takes the button off screen, which would
+  // otherwise leave a run going with no way to stop it. The table keeps its
+  // run: the sky is still behind it, and the button is still there.
+  useEffect(() => {
+    if (stage === STAGE_LANDING) setPlaying(false);
+  }, [stage]);
+
+  const togglePlay = () => {
+    if (!canPlay) return;
+
+    if (playing) {
+      setPlaying(false);
+      return;
+    }
+
+    // There is nothing to watch from the landing panel or the table, so a press
+    // from either brings the graph up first.
+    if (stage !== STAGE_GRAPH) {
+      stopRefs.current[STAGE_GRAPH]?.scrollIntoView({ behavior: "smooth" });
+    }
+
+    // Always from the far left. A run is a whole range going past, so resuming
+    // mid-series would drop the viewer into the middle of one.
+    playIndexRef.current = 0;
+    setPlayIndex(0);
+    setPlaying(true);
+  };
+
+  // A run counts as activity: the reading it is on is the whole point of
+  // watching, so the readout must not idle away underneath it.
+  const controlsVisible = (isActive || playing) && stage === STAGE_GRAPH;
   // The landing figure is a fact about the week, not about whichever range the
   // user later picks, so it does not follow graphToDisplay.
   const headline = headlineFor(views.week ?? views[availableRanges[0]]);
 
   return (
-    <main>
+    // While a run is on, the sky takes a whole step to move between readings
+    // and does it at a steady rate; off the clock it goes back to the quick
+    // ease that keeps the sun with the pointer.
+    <main
+      style={{
+        "--sky-transition": playing ? `${playStep}ms linear` : undefined,
+      }}
+    >
       {/* Sky furniture is fixed, so it stays put while the stops scroll past. */}
-      <Header views={views} availableRanges={availableRanges} />
+      <Header
+        views={views}
+        availableRanges={availableRanges}
+        peaksVisible={stage !== STAGE_LANDING}
+      />
       <div
         className="nightGradient"
         style={{ opacity: nightness * NIGHT_MAX_OPACITY }}
@@ -272,7 +388,15 @@ export default function SolarApp({ views, availableRanges }) {
         handleBarHover={handleBarHover}
         barHovered={barHovered}
         hidden={stage !== STAGE_GRAPH}
+        playingIndex={playing ? playIndex : null}
+        playStepMs={playStep}
       />
+
+      {/* Nothing to run through while the question is up, and the button would
+          compete with it for the reader's next click. */}
+      {canPlay && stage !== STAGE_LANDING && (
+        <PlayButton playing={playing} onToggle={togglePlay} />
+      )}
 
       {/* Sits with the graph on the first stop, and only while the user is
           actually doing something. */}

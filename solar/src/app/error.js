@@ -11,7 +11,7 @@ export default function Error({ error, reset }) {
         <h1 className="text-3xl font-bold" aria-label="Awful">
           <span aria-hidden="true">
             AW
-            <span className="line-through decoration-2 opacity-50">ESUN</span>
+            <span className="struck-out">ESUN</span>
             FUL
           </span>
         </h1>
@@ -23,7 +23,7 @@ export default function Error({ error, reset }) {
           Try again
         </button>
         {process.env.NODE_ENV === "development" && (
-          <pre className="mt-6 max-w-xl overflow-auto text-left text-xs text-slate-900">
+          <pre className="mt-6 max-w-xl overflow-auto text-left text-xs text-slate-200">
             {error?.message}
           </pre>
         )}
