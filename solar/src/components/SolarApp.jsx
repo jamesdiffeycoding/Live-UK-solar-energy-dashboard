@@ -38,11 +38,44 @@ const rangeDisplay = {
 const STOP_COUNT = 2;
 const STAGE_TABLE = 1;
 
+// The range controls are chrome rather than content, so they stay out of the
+// picture until the user reaches for them and withdraw once things go still.
+// Starting hidden means a fresh load is just sky, sun and graph.
+const CONTROLS_IDLE_MS = 10000;
+
+function useRecentActivity(idleMs) {
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    let timer;
+    const wake = () => {
+      setActive(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => setActive(false), idleMs);
+    };
+
+    // pointermove covers mouse and pen; the rest are so that touch and
+    // keyboard users can summon the controls at all.
+    const events = ["pointermove", "pointerdown", "keydown", "wheel"];
+    events.forEach((name) =>
+      window.addEventListener(name, wake, { passive: true })
+    );
+
+    return () => {
+      clearTimeout(timer);
+      events.forEach((name) => window.removeEventListener(name, wake));
+    };
+  }, [idleMs]);
+
+  return active;
+}
+
 export default function SolarApp({ views, availableRanges }) {
   // State
   const [graphToDisplay, setGraphToDisplay] = useState(availableRanges[0]);
   const [stage, setStage] = useState(0);
   const stopRefs = useRef([]);
+  const isActive = useRecentActivity(CONTROLS_IDLE_MS);
   const [sunSize, setSunSize] = useState(60); // default size
   const [cloudOpacityState, setCloudOpacityState] = useState(20);
   const [barHoveredInformation, setBarHoveredInformation] = useState(
@@ -96,6 +129,7 @@ export default function SolarApp({ views, availableRanges }) {
   }
 
   const activeView = views[graphToDisplay];
+  const controlsVisible = isActive && stage !== STAGE_TABLE;
 
   return (
     <main>
@@ -118,12 +152,16 @@ export default function SolarApp({ views, availableRanges }) {
           actually doing something. */}
       <section
         className={`flex w-full items-end justify-between gap-4 pl-9 pr-9 fixed bottom-[37%] z-50
-          transition-opacity duration-500 ${
-            stage === STAGE_TABLE
-              ? "pointer-events-none opacity-0"
-              : "opacity-100"
+          transition-opacity ${
+            controlsVisible ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
-        aria-hidden={stage === STAGE_TABLE}
+        style={{
+          // Slow to arrive so the controls drift in rather than blink on;
+          // quicker to leave, since by then the user has moved on.
+          transitionDuration: controlsVisible ? "1600ms" : "700ms",
+          transitionTimingFunction: "ease-out",
+        }}
+        aria-hidden={!controlsVisible}
       >
         <GraphSelector
           graphToDisplay={graphToDisplay}
