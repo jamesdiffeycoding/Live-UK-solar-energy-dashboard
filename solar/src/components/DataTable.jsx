@@ -9,7 +9,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { getTimeHalfHourLater } from "@/app/timeAndDateHelpers.js";
+import { getTimeHalfHourLater, ukDayKey } from "@/app/timeAndDateHelpers.js";
 
 // The raw feed row is [pes_id, ISO datetime, generation in MW]. Everything the
 // table shows is derived here once, so sorting and filtering act on real
@@ -35,6 +35,40 @@ function toRecord(row, peakValue) {
     homes: row[2] * 10000,
   };
 }
+
+// The two questions most people arrive at the table with, as one click each.
+// They cut the rows before the table sees them, rather than filtering the page
+// on screen, so the pager, the count and the export all agree with the preset.
+//
+// Daylight is defined as anything actually generated rather than by a clock:
+// the panels' own hours are what "daylight" means here, and they shift by
+// months across a year in a way any fixed pair of hours would get wrong.
+const PRESETS = [
+  { id: "all", label: "All half hours", apply: (records) => records },
+  {
+    id: "daylight",
+    label: "Daylight only",
+    apply: (records) => records.filter((record) => record.megawatts > 0),
+  },
+  {
+    id: "peaks",
+    label: "Daily peaks",
+    // The best half hour of each UK calendar day. Ties keep the earlier
+    // reading, so a flat day reports when it first reached its best rather
+    // than when it last did.
+    apply: (records) => {
+      const best = new Map();
+      records.forEach((record) => {
+        const day = ukDayKey(record.iso);
+        const standing = best.get(day);
+        if (!standing || record.megawatts > standing.megawatts) {
+          best.set(day, record);
+        }
+      });
+      return [...best.values()];
+    },
+  },
+];
 
 const columnHelper = createColumnHelper();
 
@@ -113,6 +147,7 @@ export default function DataTable({ dataToDisplay, peakValue, range }) {
   const [sorting, setSorting] = useState([{ id: "day", desc: true }]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [minMegawatts, setMinMegawatts] = useState("");
+  const [presetId, setPresetId] = useState("all");
 
   const shellRef = useRef(null);
   const filtersRef = useRef(null);
@@ -120,10 +155,14 @@ export default function DataTable({ dataToDisplay, peakValue, range }) {
   const tbodyRef = useRef(null);
   const pagerRef = useRef(null);
 
-  const data = useMemo(
-    () => dataToDisplay.map((row) => toRecord(row, peakValue)),
-    [dataToDisplay, peakValue]
-  );
+  // Percentages stay against the range's own peak rather than the preset's, so
+  // a row reads the same whichever preset is up: "% of period peak" is a fact
+  // about the period, not about the selection.
+  const data = useMemo(() => {
+    const records = dataToDisplay.map((row) => toRecord(row, peakValue));
+    const preset = PRESETS.find((option) => option.id === presetId);
+    return preset ? preset.apply(records) : records;
+  }, [dataToDisplay, peakValue, presetId]);
 
   const table = useReactTable({
     data,
@@ -145,6 +184,13 @@ export default function DataTable({ dataToDisplay, peakValue, range }) {
   // would otherwise retrigger the effect forever.
   const tableRef = useRef(table);
   tableRef.current = table;
+
+  // Daily peaks is a fraction of the rows all half hours has, so a preset
+  // picked from page nine would otherwise land on a page that no longer
+  // exists.
+  useEffect(() => {
+    tableRef.current.setPageIndex(0);
+  }, [presetId]);
 
   useEffect(() => {
     const shell = shellRef.current;
@@ -251,12 +297,44 @@ export default function DataTable({ dataToDisplay, peakValue, range }) {
               className="w-24 rounded bg-slate-800 px-2 py-1 placeholder:text-slate-500"
             />
           </label>
+          {/* Same pills as the range selector over the graph: both are one
+              choice out of a short list, so they are the same control. */}
+          <div className="flex flex-col">
+            <span className="pb-1 text-slate-300">Show</span>
+            <div className="flex gap-1 rounded-lg bg-slate-800 p-1">
+              {PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => setPresetId(preset.id)}
+                  aria-pressed={presetId === preset.id}
+                  className={`rounded px-2 py-0.5 transition-colors ${
+                    presetId === preset.id
+                      ? "bg-white/15 text-yellow-400"
+                      : "text-slate-300 hover:text-white"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Counted against the whole range, not against the preset, so
+              picking one says how much it left out. */}
           <span className="pb-1 text-slate-300">
-            {exportRows.length} of {data.length} half hours
+            {exportRows.length} of {dataToDisplay.length} half hours
           </span>
         </div>
         <button
-          onClick={() => downloadCsv(exportRows, `awesun-${range}.csv`)}
+          // The preset is in the filename: an export of daily peaks and an
+          // export of everything are different files and should not both land
+          // in a downloads folder as awesun-week.csv.
+          onClick={() =>
+            downloadCsv(
+              exportRows,
+              `awesun-${range}${presetId === "all" ? "" : `-${presetId}`}.csv`
+            )
+          }
           disabled={exportRows.length === 0}
           className="rounded bg-yellow-500 px-3 py-1 font-bold text-slate-900 hover:bg-yellow-400 disabled:opacity-40"
         >
