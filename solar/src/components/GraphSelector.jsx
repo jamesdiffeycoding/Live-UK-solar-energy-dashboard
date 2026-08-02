@@ -1,9 +1,7 @@
 import React from "react";
 
 export default function GraphSelector({ graphToDisplay, handleDisplay }) {
-  // TODO: update options if year becomes available
-  // const options = ["week", "month", "year"];
-  const options = ["week", "month"];
+  const options = ["week", "month", "year"];
 
   return (
     <div className="text-slate-600 text-xs sm:text-xs md:text-base lg:text-base xl:text-base 2xl:text-base">
