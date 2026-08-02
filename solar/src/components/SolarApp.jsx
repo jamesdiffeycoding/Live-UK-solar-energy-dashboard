@@ -53,7 +53,7 @@ export default function SolarApp({ views, availableRanges }) {
     let newValueRounded = Math.ceil(newValue[2]);
     setSunSize(20 + (newValueRounded / peakForComparison) * 80);
     setCloudOpacityState(
-      (prev) => 100 - (newValueRounded / peakForComparison) * 120
+      Math.max(0, 100 - (newValueRounded / peakForComparison) * 120)
     );
     setBarHovered(`${newValueRounded} MW`);
     setBarHoveredInformation(
