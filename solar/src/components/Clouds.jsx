@@ -1,7 +1,14 @@
 "use client";
+import { SKY_TRANSITION } from "./skyTiming";
 import "../App.css";
 
-const Clouds = ({ cloudOpacityState }) => {
+const Clouds = ({ cloudOpacityState, nightness = 0 }) => {
+  // Cloud cover peaks exactly when the sky is darkest, so left alone the night
+  // sky would be mostly bright white cloud. Dim and cool them to match.
+  const nightFilter = `brightness(${1 - 0.55 * nightness}) saturate(${
+    1 - 0.3 * nightness
+  })`;
+
   return (
     <>
       <section className="grid fixed w-screen h-screen top-0 overflow-hidden">
@@ -13,7 +20,8 @@ const Clouds = ({ cloudOpacityState }) => {
             height: "auto",
             position: "relative",
             opacity: `${cloudOpacityState}%`,
-            transition: "opacity 3s ease-in-out", // Transition for opacity
+            filter: nightFilter,
+            transition: `opacity ${SKY_TRANSITION}, filter ${SKY_TRANSITION}`,
 
             left: `0%`,
           }}
@@ -28,7 +36,8 @@ const Clouds = ({ cloudOpacityState }) => {
             height: "auto",
             position: "relative",
             opacity: `${cloudOpacityState}%`,
-            transition: "opacity 3s ease-in-out", // Transition for opacity
+            filter: nightFilter,
+            transition: `opacity ${SKY_TRANSITION}, filter ${SKY_TRANSITION}`,
 
             left: `100%`,
           }}
@@ -43,7 +52,8 @@ const Clouds = ({ cloudOpacityState }) => {
             height: "auto",
             position: "relative",
             opacity: `${cloudOpacityState}%`,
-            transition: "opacity 3s ease-in-out", // Transition for opacity
+            filter: nightFilter,
+            transition: `opacity ${SKY_TRANSITION}, filter ${SKY_TRANSITION}`,
 
             left: `-100%`,
           }}
@@ -58,7 +68,8 @@ const Clouds = ({ cloudOpacityState }) => {
             height: "auto",
             position: "relative",
             opacity: `${cloudOpacityState}%`,
-            transition: "opacity 3s ease-in-out", // Transition for opacity
+            filter: nightFilter,
+            transition: `opacity ${SKY_TRANSITION}, filter ${SKY_TRANSITION}`,
             left: `-200%`,
           }}
         />

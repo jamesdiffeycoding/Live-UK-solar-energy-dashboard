@@ -37,6 +37,30 @@ html {
   );
 }
 
+/* Dusk, layered over the day sky rather than replacing it. Same angle and the
+   same four stops so the two read as one sky at any blend. The horizon stop
+   stays the lightest: without it the page reads as having gone black rather
+   than dark. Sits above the day gradient (-30) but below the sun (-20). */
+.nightGradient {
+  position: fixed;
+  top: 0;
+  height: 100vh;
+  width: 100vw;
+  margin: 0;
+  z-index: -25;
+  pointer-events: none;
+  background-image: linear-gradient(
+    -179deg,
+    rgb(12, 10, 30) 0px,
+    rgb(28, 20, 56) 26%,
+    rgb(52, 34, 86) 57%,
+    rgb(84, 60, 112) 100%
+  );
+  /* Matches SKY_TRANSITION in components/skyTiming.js: the dusk layer, the sun
+     and the cloud tint all have to move together to read as one sky. */
+  transition: opacity 400ms ease-out;
+}
+
 .customContainer {
   height: 100vh;
   width: 100vw;
@@ -93,15 +117,26 @@ html {
   grid-template-rows: 35% 60%;
 }
 
+/* Two variables drive the glow. The colour cools towards moonlight as the sky
+   darkens; the scale is how hard the sun is working, so a dull hour gives a
+   wan disc and a peak one blazes. Both fall back to a bright noon if nothing
+   sets them. Radii are multiplied rather than replaced so the four-layer
+   falloff keeps its shape at every strength. */
 @keyframes shine {
   0%,
   100% {
-    box-shadow: 0 0 5px rgb(255, 220, 114), 0 0 13px rgb(255, 220, 114),
-      0 0 20px rgb(255, 220, 114), 0 0 30px rgb(255, 220, 114);
+    box-shadow: 0 0 calc(5px * var(--glow-scale, 1))
+        var(--sun-glow, rgb(255, 220, 114)),
+      0 0 calc(13px * var(--glow-scale, 1)) var(--sun-glow, rgb(255, 220, 114)),
+      0 0 calc(20px * var(--glow-scale, 1)) var(--sun-glow, rgb(255, 220, 114)),
+      0 0 calc(30px * var(--glow-scale, 1)) var(--sun-glow, rgb(255, 220, 114));
   }
   50% {
-    box-shadow: 0 0 20px rgb(255, 220, 114), 0 0 50px rgb(255, 220, 114),
-      0 0 80px rgb(255, 220, 114), 0 0 120px rgb(255, 220, 114);
+    box-shadow: 0 0 calc(20px * var(--glow-scale, 1))
+        var(--sun-glow, rgb(255, 220, 114)),
+      0 0 calc(50px * var(--glow-scale, 1)) var(--sun-glow, rgb(255, 220, 114)),
+      0 0 calc(80px * var(--glow-scale, 1)) var(--sun-glow, rgb(255, 220, 114)),
+      0 0 calc(120px * var(--glow-scale, 1)) var(--sun-glow, rgb(255, 220, 114));
   }
 }
 

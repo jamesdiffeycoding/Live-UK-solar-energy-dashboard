@@ -70,18 +70,91 @@ function useRecentActivity(idleMs) {
   return active;
 }
 
+// Dusk, keyed to the clock rather than to the meter. Full night before
+// DAWN_START and after DUSK_END, full day between DAY_START and DAY_END, and a
+// gradual crossing in between, so walking the bars through an evening watches
+// the sky go over instead of snapping between two neighbours.
+const DAWN_START = 4;
+const DAY_START = 8;
+const DAY_END = 17;
+const DUSK_END = 21;
+// Generation no longer drives the sky, but an overcast noon still shouldn't
+// look like a clear one, so gloom is allowed to add this much on top of
+// whatever the hour asks for. Small: it is weather, not nightfall.
+const GLOOM_MAX = 0.3;
+// Below this share of the range's peak, gloom is at full strength.
+const GLOOM_FLOOR = 0.15;
+// How much of the cloud cover a full night takes away. Not all of it: some
+// cloud overhead is what keeps the night sky from looking like flat paper.
+const NIGHT_CLOUD_THINNING = 0.75;
+// Held short of opaque on purpose: a trace of the day sky showing through is
+// what keeps this reading as dusk rather than as a second theme.
+const NIGHT_MAX_OPACITY = 0.85;
+
+const clamp01 = (value) => Math.min(1, Math.max(0, value));
+
+// Eased rather than linear, so the crossing has no visible corner at either end
+// of the dawn and dusk windows.
+const smoothstep = (value) => value * value * (3 - 2 * value);
+
+// Fractional hours, so a half-hourly reading lands halfway between two hours
+// rather than being rounded onto one of them.
+function nightnessForTime(dateString) {
+  const date = new Date(dateString);
+  const hour = date.getHours() + date.getMinutes() / 60;
+
+  if (hour <= DAWN_START || hour >= DUSK_END) return 1;
+  if (hour >= DAY_START && hour <= DAY_END) return 0;
+
+  const [from, to] =
+    hour < DAY_START ? [DAY_START, DAWN_START] : [DAY_END, DUSK_END];
+
+  return smoothstep(clamp01((hour - from) / (to - from)));
+}
+
+// The sun's own hours, which are shorter than the sky's: it is up between
+// SUNRISE and SUNSET, while DAWN_START and DUSK_END are twilight, lit by a sun
+// already below the horizon.
+const SUNRISE = 5.5;
+const SUNSET = 21;
+// How far past the horizon the small hours are allowed to push it. Clamped at
+// all so a 3am reading doesn't translate the sun a screen and a half away for
+// no visible gain, but loose enough that night is genuinely sunless rather than
+// the sun parked on the edge.
+const BELOW_HORIZON = 0.2;
+
+// Where the sun sits along its arc: 0 at sunrise, 1 at sunset, and outside that
+// range overnight.
+function sunPositionForTime(dateString) {
+  const date = new Date(dateString);
+  const hour = date.getHours() + date.getMinutes() / 60;
+  const position = (hour - SUNRISE) / (SUNSET - SUNRISE);
+
+  return Math.min(1 + BELOW_HORIZON, Math.max(-BELOW_HORIZON, position));
+}
+
+// Local calendar day, used only to tell the sun when it has crossed midnight.
+const dayKeyForTime = (dateString) => new Date(dateString).toDateString();
+
 export default function SolarApp({ views, availableRanges }) {
   // State
   const [graphToDisplay, setGraphToDisplay] = useState(availableRanges[0]);
   const [stage, setStage] = useState(0);
   const stopRefs = useRef([]);
   const isActive = useRecentActivity(CONTROLS_IDLE_MS);
-  const [sunSize, setSunSize] = useState(60); // default size
+  // Share of the range's peak the hovered bar generated. Drives how hard the
+  // sun looks like it is working, not how big it is.
+  const [generationShare, setGenerationShare] = useState(0.5);
   const [cloudOpacityState, setCloudOpacityState] = useState(20);
   const [barHoveredInformation, setBarHoveredInformation] = useState(
     "Hover a time below to see"
   );
   const [barHovered, setBarHovered] = useState("the weather change");
+  const [nightness, setNightness] = useState(0);
+  // Midday until a bar says otherwise, so a fresh load opens with the sun where
+  // it has always sat.
+  const [sunPosition, setSunPosition] = useState(0.5);
+  const [sunDay, setSunDay] = useState(null);
 
   const handleDisplay = (event) => {
     setGraphToDisplay(event.target.textContent);
@@ -116,9 +189,22 @@ export default function SolarApp({ views, availableRanges }) {
     const peakForComparison = views[graphToDisplay].peak;
 
     let newValueRounded = Math.ceil(newValue[2]);
-    setSunSize(20 + (newValueRounded / peakForComparison) * 80);
+    const share = newValueRounded / peakForComparison;
+    setGenerationShare(clamp01(share));
+
+    // The hour sets the floor; gloom can only darken from there, never lighten
+    // a night back towards day.
+    const hourly = nightnessForTime(newValue[1]);
+    const gloom =
+      GLOOM_MAX * smoothstep(clamp01((GLOOM_FLOOR - share) / GLOOM_FLOOR));
+    setNightness(clamp01(hourly + (1 - hourly) * gloom));
+    setSunPosition(sunPositionForTime(newValue[1]));
+    setSunDay(dayKeyForTime(newValue[1]));
+    // Cloud cover stands in for weak generation, but overnight the weakness is
+    // the hour, not the weather: left alone every night reads as solidly
+    // overcast. Thin the cover as the sky darkens so a clear night stays clear.
     setCloudOpacityState(
-      Math.max(0, 100 - (newValueRounded / peakForComparison) * 120)
+      Math.max(0, 100 - share * 120) * (1 - NIGHT_CLOUD_THINNING * hourly)
     );
     setBarHovered(`${newValueRounded} MW`);
     setBarHoveredInformation(
@@ -135,8 +221,18 @@ export default function SolarApp({ views, availableRanges }) {
     <main>
       {/* Sky furniture is fixed, so it stays put while the stops scroll past. */}
       <Header views={views} availableRanges={availableRanges} />
-      <Sun sunSize={sunSize} />
-      <Clouds cloudOpacityState={cloudOpacityState} />
+      <div
+        className="nightGradient"
+        style={{ opacity: nightness * NIGHT_MAX_OPACITY }}
+        aria-hidden="true"
+      />
+      <Sun
+        generationShare={generationShare}
+        nightness={nightness}
+        sunPosition={sunPosition}
+        sunDay={sunDay}
+      />
+      <Clouds cloudOpacityState={cloudOpacityState} nightness={nightness} />
 
       <Graph
         dataToDisplay={activeView.data}

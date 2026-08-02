@@ -8,9 +8,9 @@ import { localPoint } from "@visx/event";
 
 const HALF_HOUR = 30 * 60 * 1000;
 
-// Labels sit inside the plot, over the bars, so that the bars still meet the
-// green base of the graph. A reserved gutter below them would float the whole
-// series clear of it.
+// Labels sit inside the plot, over the bars, so that the bars still reach the
+// bottom of the plot. A reserved gutter below them would float the whole series
+// clear of it.
 const LABEL_BASELINE_INSET = 6;
 
 // The data is only published for daytime hours, so consecutive readings are
@@ -204,8 +204,8 @@ export default function GraphContainer({ hidden = false, ...props }) {
       style={{
         opacity: hidden ? 0 : 1,
         pointerEvents: hidden ? "none" : "auto",
-        // Clears the scroll hint band so the green base sits on top of it
-        // rather than behind it.
+        // Clears the scroll hint band so the bars sit above it rather than
+        // running behind it.
         paddingBottom: "30px",
       }}
       aria-hidden={hidden}
@@ -217,8 +217,6 @@ export default function GraphContainer({ hidden = false, ...props }) {
           )}
         </ParentSize>
       </div>
-      {/* BASE OF GRAPH */}
-      <div className="w-full h-4 bg-green-700 bg-gradient-to-b from-green-600 to-green-500"></div>
     </section>
   );
 }
