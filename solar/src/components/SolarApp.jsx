@@ -139,15 +139,49 @@ const PLAY_DURATION_MS = 150000;
 const PLAY_STEP_MIN_MS = 400;
 const PLAY_STEP_MAX_MS = 1200;
 
-// The sky's transitions are stretched to this same figure while a run is on, so
-// each reading takes the whole step to arrive. That is what keeps the sun
-// gliding rather than easing into place and then waiting.
+// How long the sky is given to reach each frame's figures during a run. Short
+// enough to be imperceptible as lag, long enough to take the corner off the
+// per-frame jitter — the values are already continuous, so this is smoothing
+// rather than the travel itself.
+const PLAY_SKY_TRANSITION = "120ms linear";
+
+// How long the run takes to cross one reading.
 function playStepMs(count) {
   return Math.min(
     PLAY_STEP_MAX_MS,
     Math.max(PLAY_STEP_MIN_MS, PLAY_DURATION_MS / Math.max(1, count))
   );
 }
+
+// A reading from between the readings. PVLive publishes on the half hour, so a
+// run that only ever showed those figures would move the sky in half-hourly
+// jerks. Position is a fractional index, and both the time and the generation
+// are read straight off the line between the reading either side of it: a third
+// of the way from 10:00 to 10:30 is a 10:10 that is a third of the way from one
+// figure to the next. Invented, and only ever used to drive the sky — the graph
+// and the table still show what was actually published.
+function readingAt(data, position) {
+  const low = Math.max(0, Math.min(data.length - 1, Math.floor(position)));
+  const high = Math.min(data.length - 1, low + 1);
+  const between = position - low;
+
+  const before = data[low];
+  const after = data[high];
+  const from = new Date(before[1]).getTime();
+  const to = new Date(after[1]).getTime();
+
+  return [
+    before[0],
+    new Date(from + (to - from) * between).toISOString(),
+    before[2] + (after[2] - before[2]) * between,
+  ];
+}
+
+// What the plus and minus step through. Doubling each time, so a press is
+// always a plainly different pace rather than a nudge, and 1x sits in the
+// middle as the pace the run opens at.
+const PLAY_SPEEDS = [0.25, 0.5, 1, 2, 4];
+const DEFAULT_SPEED_INDEX = 2;
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 
@@ -197,10 +231,11 @@ export default function SolarApp({ views, availableRanges }) {
   // sun looks like it is working, not how big it is.
   const [generationShare, setGenerationShare] = useState(0.5);
   const [cloudOpacityState, setCloudOpacityState] = useState(20);
-  const [barHoveredInformation, setBarHoveredInformation] = useState(
-    "Hover a time below to see"
-  );
-  const [barHovered, setBarHovered] = useState("the weather change");
+  // Empty until a reading is picked: the readout is a caption for whatever the
+  // sky is currently showing, and with nothing hovered there is nothing to
+  // caption.
+  const [barHoveredInformation, setBarHoveredInformation] = useState("");
+  const [barHovered, setBarHovered] = useState("");
   const [nightness, setNightness] = useState(0);
   // Midday until a bar says otherwise, so a fresh load opens with the sun where
   // it has always sat.
@@ -209,8 +244,9 @@ export default function SolarApp({ views, availableRanges }) {
   // Playback walks the same readings the pointer does, so nothing about the sky
   // needs to know whether a person or the clock is driving it.
   const [playing, setPlaying] = useState(false);
-  const [playIndex, setPlayIndex] = useState(0);
-  const playIndexRef = useRef(0);
+  const [playPosition, setPlayPosition] = useState(0);
+  const playPositionRef = useRef(0);
+  const [speedIndex, setSpeedIndex] = useState(DEFAULT_SPEED_INDEX);
 
   const handleDisplay = (event) => {
     setGraphToDisplay(event.target.textContent);
@@ -241,7 +277,7 @@ export default function SolarApp({ views, availableRanges }) {
     });
   };
 
-  function applyBar(newValue) {
+  function applyBar(newValue, { exact = false } = {}) {
     const peakForComparison = views[graphToDisplay].peak;
 
     let newValueRounded = Math.ceil(newValue[2]);
@@ -263,10 +299,16 @@ export default function SolarApp({ views, availableRanges }) {
       Math.max(0, 100 - share * 120) * (1 - NIGHT_CLOUD_THINNING * hourly)
     );
     setBarHovered(formatPowerWithUnit(newValueRounded));
+    // A hovered bar is half an hour of published data and is labelled as the
+    // span it is. A frame of a run is a single invented moment between two
+    // readings, so quoting a half hour after it would be claiming a slot that
+    // does not exist.
     setBarHoveredInformation(
-      `${formatDateForDisplay(newValue[1])}-${getTimeHalfHourLater(
-        newValue[1]
-      )}`
+      exact
+        ? formatDateForDisplay(newValue[1])
+        : `${formatDateForDisplay(newValue[1])}-${getTimeHalfHourLater(
+            newValue[1]
+          )}`
     );
   }
 
@@ -279,37 +321,54 @@ export default function SolarApp({ views, availableRanges }) {
 
   const activeView = views[graphToDisplay];
   const playCount = activeView.data.length;
-  const playStep = playStepMs(playCount);
+  // Speed divides the step rather than scaling it, so 2x is half as long on
+  // each reading. The sky's transitions are tied to the same figure, so they
+  // shorten with it and the run stays a glide at every pace.
+  const playSpeed = PLAY_SPEEDS[speedIndex];
+  const playStep = playStepMs(playCount) / playSpeed;
   const canPlay = PLAYABLE_RANGES.includes(graphToDisplay);
 
-  // The readings the run steps through are kept in a ref as well as in state so
-  // the ticker can advance without being torn down and rebuilt every step.
+  // Held in a ref as well as in state so the frame loop can drive the sky
+  // without being torn down and rebuilt on every frame.
   const applyBarRef = useRef(applyBar);
   applyBarRef.current = applyBar;
 
+  // A frame loop rather than a timer per reading: the position it advances is
+  // fractional, so between two published figures there are sixty invented ones
+  // a second and the sky simply moves. playStep is now how long a reading takes
+  // to cross rather than how long it is held.
   useEffect(() => {
     if (!playing) return undefined;
 
-    const id = setInterval(() => {
-      const next = playIndexRef.current + 1;
-      if (next >= playCount) {
+    let frame;
+    let previous = performance.now();
+
+    const tick = (now) => {
+      const next = playPositionRef.current + (now - previous) / playStep;
+      previous = now;
+
+      if (next >= playCount - 1) {
+        playPositionRef.current = playCount - 1;
+        setPlayPosition(playCount - 1);
         setPlaying(false);
         return;
       }
-      playIndexRef.current = next;
-      setPlayIndex(next);
-    }, playStep);
 
-    return () => clearInterval(id);
+      playPositionRef.current = next;
+      setPlayPosition(next);
+      frame = requestAnimationFrame(tick);
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
   }, [playing, playCount, playStep]);
 
-  // Applied here rather than in the ticker so that the sky follows the index
+  // Applied here rather than in the loop so that the sky follows the position
   // however it moved — including the jump back to the start on a fresh press.
   useEffect(() => {
-    if (!playing) return;
-    const row = activeView.data[playIndex];
-    if (row) applyBarRef.current(row);
-  }, [playing, playIndex, activeView]);
+    if (!playing || activeView.data.length === 0) return;
+    applyBarRef.current(readingAt(activeView.data, playPosition), { exact: true });
+  }, [playing, playPosition, activeView]);
 
   // Switching range mid-run would leave the index pointing at a reading from a
   // different series, so the run ends rather than jumping.
@@ -340,10 +399,18 @@ export default function SolarApp({ views, availableRanges }) {
 
     // Always from the far left. A run is a whole range going past, so resuming
     // mid-series would drop the viewer into the middle of one.
-    playIndexRef.current = 0;
-    setPlayIndex(0);
+    playPositionRef.current = 0;
+    setPlayPosition(0);
+    // Back to the middle of the range each time: a pace chosen for a month is
+    // rarely the one wanted for the next run.
+    setSpeedIndex(DEFAULT_SPEED_INDEX);
     setPlaying(true);
   };
+
+  const changeSpeed = (by) =>
+    setSpeedIndex((current) =>
+      Math.min(PLAY_SPEEDS.length - 1, Math.max(0, current + by))
+    );
 
   // A run counts as activity: the reading it is on is the whole point of
   // watching, so the readout must not idle away underneath it.
@@ -358,7 +425,7 @@ export default function SolarApp({ views, availableRanges }) {
     // ease that keeps the sun with the pointer.
     <main
       style={{
-        "--sky-transition": playing ? `${playStep}ms linear` : undefined,
+        "--sky-transition": playing ? PLAY_SKY_TRANSITION : undefined,
       }}
     >
       {/* Sky furniture is fixed, so it stays put while the stops scroll past. */}
@@ -388,14 +455,25 @@ export default function SolarApp({ views, availableRanges }) {
         handleBarHover={handleBarHover}
         barHovered={barHovered}
         hidden={stage !== STAGE_GRAPH}
-        playingIndex={playing ? playIndex : null}
-        playStepMs={playStep}
+        playingTimeMs={
+          playing && activeView.data.length > 0
+            ? new Date(readingAt(activeView.data, playPosition)[1]).getTime()
+            : null
+        }
       />
 
       {/* Nothing to run through while the question is up, and the button would
           compete with it for the reader's next click. */}
       {canPlay && stage !== STAGE_LANDING && (
-        <PlayButton playing={playing} onToggle={togglePlay} />
+        <PlayButton
+          playing={playing}
+          onToggle={togglePlay}
+          speedLabel={`${playSpeed}x`}
+          onFaster={() => changeSpeed(1)}
+          onSlower={() => changeSpeed(-1)}
+          canGoFaster={speedIndex < PLAY_SPEEDS.length - 1}
+          canGoSlower={speedIndex > 0}
+        />
       )}
 
       {/* Sits with the graph on the first stop, and only while the user is

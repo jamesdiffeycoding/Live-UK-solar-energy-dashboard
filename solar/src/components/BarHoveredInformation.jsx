@@ -4,6 +4,10 @@ export default function BarHoveredInformation({
   barHovered,
   barHoveredInformation,
 }) {
+  // Nothing picked yet, so there is nothing to caption: an empty panel here
+  // would just be a box floating beside the graph.
+  if (!barHovered && !barHoveredInformation) return null;
+
   return (
     // Same smoked panel as the header corners: this sits over the sky too, and
     // the sky it sits over goes dark.

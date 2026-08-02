@@ -69,6 +69,35 @@ function nearestIndex(times, target) {
   return low;
 }
 
+// The bars are the expensive part of the plot and the only part a run does not
+// touch: a month is well over a thousand of them, redrawn sixty times a second
+// behind a marker that is the only thing actually moving. Split out and
+// memoised, so a frame of a run costs one rect.
+const Bars = React.memo(function Bars({
+  dataToDisplay,
+  times,
+  xScale,
+  yScale,
+  barWidth,
+  innerHeight,
+}) {
+  return dataToDisplay.map((row, index) => {
+    const barHeight = yScale(row[2]);
+    return (
+      <BarRounded
+        key={index}
+        x={xScale(times[index])}
+        y={innerHeight - barHeight}
+        width={barWidth}
+        height={barHeight}
+        radius={Math.min(6, barWidth / 2)}
+        top
+        fill="url(#barGreen)"
+      />
+    );
+  });
+});
+
 function GraphInner({
   width,
   height,
@@ -77,13 +106,9 @@ function GraphInner({
   labelFormatter,
   labelScheme,
   handleBarHover,
-  playingIndex = null,
-  playStepMs = 200,
+  playingTimeMs = null,
 }) {
   const [hoveredIndex, setHoveredIndex] = useState(null);
-  // The pointer wins while it is over the plot; otherwise the marker follows
-  // whichever reading the run is on.
-  const markedIndex = hoveredIndex ?? playingIndex;
   const innerHeight = height;
 
   const times = useMemo(
@@ -136,25 +161,29 @@ function GraphInner({
 
   const barWidth = Math.max(1, xScale(times[0] + slotMs) - xScale(times[0]));
 
+  // The pointer wins while it is over the plot, and snaps to the reading it is
+  // nearest. A run is placed by time rather than by reading, so the marker
+  // slides across each bar instead of jumping between them — it is showing a
+  // moment, not a slot.
+  const markerX =
+    hoveredIndex !== null
+      ? xScale(times[hoveredIndex])
+      : playingTimeMs !== null
+      ? xScale(playingTimeMs)
+      : null;
+
   return (
     <svg width={width} height={height}>
       <LinearGradient id="barGreen" from="#166534" to="#16a34a" vertical />
 
-      {dataToDisplay.map((row, index) => {
-        const barHeight = yScale(row[2]);
-        return (
-          <BarRounded
-            key={index}
-            x={xScale(times[index])}
-            y={innerHeight - barHeight}
-            width={barWidth}
-            height={barHeight}
-            radius={Math.min(6, barWidth / 2)}
-            top
-            fill="url(#barGreen)"
-          />
-        );
-      })}
+      <Bars
+        dataToDisplay={dataToDisplay}
+        times={times}
+        xScale={xScale}
+        yScale={yScale}
+        barWidth={barWidth}
+        innerHeight={innerHeight}
+      />
 
       <g className="x-axis">
         {ticks.map((tick) => (
@@ -180,22 +209,14 @@ function GraphInner({
 
       {/* Drawn over the bars rather than behind them: an opaque highlight
           would be hidden by the very bar it is meant to be marking. */}
-      {markedIndex !== null && (
+      {markerX !== null && (
         <rect
-          x={xScale(times[markedIndex])}
+          x={markerX}
           y={0}
           width={Math.max(2, barWidth)}
           height={innerHeight}
           fill="rgb(255, 182, 80)"
           fillOpacity={0.45}
-          // Takes exactly one step to cross to the next reading, so a run reads
-          // as one marker travelling the series at a steady rate rather than
-          // hopping and waiting. Only while playing: a pointer needs the
-          // marker under it immediately.
-          style={{
-            transition:
-              playingIndex === null ? "none" : `x ${playStepMs}ms linear`,
-          }}
         />
       )}
 

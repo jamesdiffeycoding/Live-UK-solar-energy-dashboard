@@ -12,32 +12,29 @@ export default function GraphSelector({
   if (options.length < 2) return <div />;
 
   return (
-    // Panelled and lightened for the same reason as the readout opposite: at
-    // dusk the old slate-600 was a shade off the sky behind it.
+    // One row of equal pills. The old version marked the current range three
+    // times over — colour, underline and a filled box — and only the selected
+    // one carried padding, so the whole row shifted as you moved between them.
+    // Every option now has the same shape and the fill alone says which is on.
     <div
-      className="rounded-2xl bg-slate-900/45 px-3 py-2 text-slate-200 text-xs
-        backdrop-blur-sm sm:text-xs md:text-base lg:text-base xl:text-base 2xl:text-base"
+      className="flex gap-1 rounded-2xl bg-slate-900/45 p-1 text-xs
+        backdrop-blur-sm sm:text-xs md:text-base"
     >
-      <div>
-        <span className="hide-when-portrait text-slate-300 ">
-          Choose date range:{" "}
-        </span>
-      </div>
-      {options
-        .map((option) => (
-          <span
-            key={option}
-            onClick={handleDisplay}
-            className={`cursor-pointer hover:text-white ${
-              graphToDisplay === option
-                ? "text-yellow-400 underline bg-slate-700 rounded-lg p-1"
-                : "text-slate-300"
-            }`}
-          >
-            {option}
-          </span>
-        ))
-        .reduce((prev, curr) => [prev, " / ", curr])}
+      {options.map((option) => (
+        <button
+          key={option}
+          type="button"
+          onClick={handleDisplay}
+          aria-pressed={graphToDisplay === option}
+          className={`rounded-xl px-3 py-1 transition-colors ${
+            graphToDisplay === option
+              ? "bg-white/15 text-yellow-400"
+              : "text-slate-300 hover:text-white"
+          }`}
+        >
+          {option}
+        </button>
+      ))}
     </div>
   );
 }
