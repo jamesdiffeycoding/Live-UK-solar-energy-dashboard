@@ -28,6 +28,9 @@ export function ukFractionalHour(dateString) {
   return Number(hour) + Number(minute) / 60;
 }
 
+// Just the time on a UK clock, as 24-hour HH:MM.
+export const ukTimeOfDay = (dateString) => ukClock.format(new Date(dateString));
+
 // UK calendar day, used only to tell the sun when it has crossed midnight.
 const ukDate = new Intl.DateTimeFormat("en-CA", { timeZone: UK_ZONE });
 export const ukDayKey = (dateString) => ukDate.format(new Date(dateString));

@@ -107,6 +107,7 @@ function GraphInner({
   labelScheme,
   handleBarHover,
   playingTimeMs = null,
+  playChunkMs = 100,
 }) {
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const innerHeight = height;
@@ -217,6 +218,16 @@ function GraphInner({
           height={innerHeight}
           fill="rgb(255, 182, 80)"
           fillOpacity={0.45}
+          // Given exactly one chunk to travel, so it is still moving when the
+          // next position arrives and the run reads as continuous rather than
+          // as fifteen little jumps a second. Off under the pointer, which
+          // needs the marker where it already is.
+          style={{
+            transition:
+              hoveredIndex !== null || playingTimeMs === null
+                ? "none"
+                : `x ${playChunkMs}ms linear`,
+          }}
         />
       )}
 

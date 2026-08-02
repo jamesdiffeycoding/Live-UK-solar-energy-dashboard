@@ -206,7 +206,7 @@ export default function Landing({ headline, onAdvance, onAnswered }) {
           onClick={onAdvance}
           className={`${PILL} mt-6 border-white/50 hover:border-yellow-300 hover:bg-white/10`}
         >
-          Show me the last few days
+          To the Dashboard
         </button>
       </Stage>
     </div>

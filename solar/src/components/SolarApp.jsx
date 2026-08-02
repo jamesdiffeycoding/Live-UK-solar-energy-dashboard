@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Header from "./Header";
 import Sun from "./Sun";
 import Clouds from "./Clouds";
@@ -18,6 +18,7 @@ import {
   getTimeHalfHourLater,
   ukDayKey,
   ukFractionalHour,
+  ukTimeOfDay,
 } from "@/app/timeAndDateHelpers.js";
 import { formatPowerWithUnit } from "@/app/powerFormat";
 
@@ -139,11 +140,12 @@ const PLAY_DURATION_MS = 150000;
 const PLAY_STEP_MIN_MS = 400;
 const PLAY_STEP_MAX_MS = 1200;
 
-// How long the sky is given to reach each frame's figures during a run. Short
-// enough to be imperceptible as lag, long enough to take the corner off the
-// per-frame jitter — the values are already continuous, so this is smoothing
-// rather than the travel itself.
-const PLAY_SKY_TRANSITION = "120ms linear";
+// How many invented readings each published one is broken into. A render per
+// frame was more than the eye needs and more than the page can comfortably
+// give: the whole document re-renders each time. At six chunks a reading the
+// state changes some fifteen times a second and CSS carries the gaps, which
+// looks smoother than sixty renders fighting for the frame budget.
+const PLAY_CHUNKS_PER_READING = 6;
 
 // How long the run takes to cross one reading.
 function playStepMs(count) {
@@ -151,6 +153,30 @@ function playStepMs(count) {
     PLAY_STEP_MAX_MS,
     Math.max(PLAY_STEP_MIN_MS, PLAY_DURATION_MS / Math.max(1, count))
   );
+}
+
+// How dark the sky has to be before the day's hours are worth quoting. Not at
+// the first hint of dusk: the note is there to say what the reader is missing
+// while nothing is visibly happening.
+const NIGHT_NOTE_FROM = 0.6;
+
+// When the panels started and stopped generating on each day in the range,
+// which is as close to sunrise and sunset as this page can honestly get: the
+// feed's own first and last generating half hours, not an almanac. Rounded to
+// the half hour it is published on, so the figures are approximate and are
+// labelled as such.
+function daylightHoursByDay(data) {
+  const days = new Map();
+
+  data.forEach((row) => {
+    if (row[2] <= 0) return;
+    const day = ukDayKey(row[1]);
+    const standing = days.get(day);
+    if (standing) standing.last = row[1];
+    else days.set(day, { first: row[1], last: row[1] });
+  });
+
+  return days;
 }
 
 // A reading from between the readings. PVLive publishes on the half hour, so a
@@ -329,7 +355,25 @@ export default function SolarApp({ views, availableRanges }) {
   // shorten with it and the run stays a glide at every pace.
   const playSpeed = PLAY_SPEEDS[speedIndex];
   const playStep = playStepMs(playCount) / playSpeed;
+  // Everything that has to keep time with the run is given exactly one chunk
+  // to cross: the sky, and the marker on the graph. Each is then still moving
+  // when the next chunk lands, so the gaps between renders never show.
+  const playChunk = playStep / PLAY_CHUNKS_PER_READING;
   const canPlay = PLAYABLE_RANGES.includes(graphToDisplay);
+
+  // Only offered once the sky has properly gone over, and only for the day the
+  // sun is currently showing: at night the page is dark and still, and the
+  // hours either side are the thing worth saying about it.
+  const daylightHours = useMemo(
+    () => daylightHoursByDay(activeView.data),
+    [activeView]
+  );
+  const tonight = nightness >= NIGHT_NOTE_FROM ? daylightHours.get(sunDay) : null;
+  const nightNote = tonight
+    ? `Sunrise ~${ukTimeOfDay(tonight.first)} · Sunset ~${getTimeHalfHourLater(
+        tonight.last
+      )}`
+    : null;
 
   // Held in a ref as well as in state so the frame loop can drive the sky
   // without being torn down and rebuilt on every frame.
@@ -346,6 +390,11 @@ export default function SolarApp({ views, availableRanges }) {
     let frame;
     let previous = performance.now();
 
+    // The position itself stays continuous — it is the clock — but only every
+    // chunk of it is published to the page, so a slow frame or a fast monitor
+    // changes nothing about how often React is asked to work.
+    let committed = null;
+
     const tick = (now) => {
       const next = playPositionRef.current + (now - previous) / playStep;
       previous = now;
@@ -358,7 +407,14 @@ export default function SolarApp({ views, availableRanges }) {
       }
 
       playPositionRef.current = next;
-      setPlayPosition(next);
+
+      const chunk =
+        Math.floor(next * PLAY_CHUNKS_PER_READING) / PLAY_CHUNKS_PER_READING;
+      if (chunk !== committed) {
+        committed = chunk;
+        setPlayPosition(chunk);
+      }
+
       frame = requestAnimationFrame(tick);
     };
 
@@ -428,7 +484,7 @@ export default function SolarApp({ views, availableRanges }) {
     // ease that keeps the sun with the pointer.
     <main
       style={{
-        "--sky-transition": playing ? PLAY_SKY_TRANSITION : undefined,
+        "--sky-transition": playing ? `${playChunk}ms linear` : undefined,
       }}
     >
       {/* Sky furniture is fixed, so it stays put while the stops scroll past. */}
@@ -463,6 +519,7 @@ export default function SolarApp({ views, availableRanges }) {
             ? new Date(readingAt(activeView.data, playPosition)[1]).getTime()
             : null
         }
+        playChunkMs={playChunk}
       />
 
       {/* Nothing to run through while the question is up, and the button would
@@ -476,6 +533,7 @@ export default function SolarApp({ views, availableRanges }) {
           onSlower={() => changeSpeed(-1)}
           canGoFaster={speedIndex < PLAY_SPEEDS.length - 1}
           canGoSlower={speedIndex > 0}
+          nightNote={nightNote}
         />
       )}
 
@@ -502,6 +560,7 @@ export default function SolarApp({ views, availableRanges }) {
         <BarHoveredInformation
           barHovered={barHovered}
           barHoveredInformation={barHoveredInformation}
+          compact={playing}
         />
       </section>
 

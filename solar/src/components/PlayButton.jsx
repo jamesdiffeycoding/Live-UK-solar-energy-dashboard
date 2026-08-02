@@ -17,9 +17,11 @@ export default function PlayButton({
   onSlower,
   canGoFaster,
   canGoSlower,
+  nightNote,
 }) {
   return (
-    <div className="fixed left-1/2 top-8 z-50 flex -translate-x-1/2 items-center gap-2">
+    <div className="fixed left-1/2 top-8 z-50 flex -translate-x-1/2 flex-col items-center gap-2">
+      <div className="flex items-center gap-2">
       {/* Speed is only a question once something is moving, so the pair is not
           there to be reasoned about beforehand. Minus on the left and plus on
           the right, either side of what they act on. */}
@@ -67,7 +69,9 @@ export default function PlayButton({
             labelled Stop rather than Pause: there is no bookmark to come back
             to. The speed rides on the label while running, since that is the
             only place the two buttons' effect is legible. */}
-        <span className="tabular-nums">
+        {/* Fixed width, so stepping 1x up to 4x does not shuffle the two knobs
+            either side of it about. */}
+        <span className="min-w-[5.5rem] text-center tabular-nums">
           {playing ? `Stop · ${speedLabel}` : "Time lapse"}
         </span>
       </button>
@@ -85,6 +89,21 @@ export default function PlayButton({
             +
           </span>
         </button>
+      )}
+      </div>
+
+      {/* Only there once the sky has gone dark, which is when the page has
+          least to show and the hours either side of the dark are the useful
+          thing to say. Tilde because these are the feed's first and last
+          generating half hours, not an almanac's sunrise. */}
+      {nightNote && (
+        <p
+          className="whitespace-nowrap rounded-full bg-slate-900/50 px-3 py-1
+            text-[11px] tabular-nums text-slate-200 backdrop-blur-sm"
+          title="The first and last half hours the country's panels generated on this day"
+        >
+          {nightNote}
+        </p>
       )}
     </div>
   );
