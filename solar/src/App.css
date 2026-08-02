@@ -185,3 +185,11 @@ html {
   width: 200%; 
   animation: cloud-breeze 300s linear infinite; 
 }
+
+/* The biggest half hour on the current page. Applied to the cells, not the
+   row: the blanket `* { color: white }` above matches each td directly and
+   would otherwise outrank anything inherited. */
+.peak-row td {
+  font-weight: 700;
+  color: #eab308;
+}

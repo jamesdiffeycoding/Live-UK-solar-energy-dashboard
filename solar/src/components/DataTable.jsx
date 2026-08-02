@@ -208,6 +208,17 @@ export default function DataTable({ dataToDisplay, peakValue, range }) {
     threshold === null || Number.isNaN(threshold)
       ? table.getRowModel().rows
       : table.getRowModel().rows.filter((row) => row.original.megawatts >= threshold);
+  // The best half hour on this page, not in the whole range, so every page has
+  // one row picked out. Held as the row object so ties highlight a single row
+  // rather than everything that shares the maximum.
+  const peakRow = visibleRows.reduce(
+    (best, row) =>
+      best === null || row.original.megawatts > best.original.megawatts
+        ? row
+        : best,
+    null
+  );
+
   const exportRows = (
     threshold === null || Number.isNaN(threshold)
       ? table.getSortedRowModel().rows
@@ -297,7 +308,12 @@ export default function DataTable({ dataToDisplay, peakValue, range }) {
             </tr>
           )}
           {visibleRows.map((row) => (
-            <tr key={row.id} className="odd:bg-slate-800/40">
+            <tr
+              key={row.id}
+              className={`odd:bg-slate-800/40 ${
+                row === peakRow ? "peak-row" : ""
+              }`}
+            >
               {row.getVisibleCells().map((cell) => (
                 <td
                   key={cell.id}
