@@ -7,16 +7,9 @@ import {
   RegExPM,
   formatDateForDisplay,
   getEndTime,
-  getEndDateAndTime,
+  getEndDate,
   getStartingDate,
 } from "./timeAndDateHelpers.js";
-
-let endTime = getEndTime();
-let startingTime = endTime;
-let endDateAndTime = getEndDateAndTime();
-let startingDateWeek = getStartingDate(7);
-let startingDateMonth = getStartingDate(31);
-let startingDateYear = getStartingDate(365);
 
 // SOLAR FETCH
 async function getSolar(startingDate, startingTime, EndDate, EndTime) {
@@ -27,30 +20,38 @@ async function getSolar(startingDate, startingTime, EndDate, EndTime) {
     },
     cache: "no-store",
   });
-  return res.json();
+  const json = await res.json();
+  if (!res.ok || !Array.isArray(json.data)) {
+    throw new Error(
+      `PVLive request failed (${res.status}): ${JSON.stringify(json)}`
+    );
+  }
+  return json;
 }
 
 export default async function Page() {
+  // DATE AND TIME VARIABLES (computed per request, not at module load)
+  const endTime = getEndTime();
+  const startingTime = endTime;
+  const endDate = getEndDate();
+  const startingDateWeek = getStartingDate(7);
+  const startingDateMonth = getStartingDate(31);
+  const startingDateYear = getStartingDate(365);
+
   // DATA FETCHES AND FILTERING
-  const daytimeDataWeek = (
-    await Promise.all([
-      getSolar(startingDateWeek, startingTime, endDateAndTime, endTime),
-    ])
-  )[0].data
+  const [weekResponse, monthResponse, yearResponse] = await Promise.all([
+    getSolar(startingDateWeek, startingTime, endDate, endTime),
+    getSolar(startingDateMonth, startingTime, endDate, endTime),
+    getSolar(startingDateYear, startingTime, endDate, endTime),
+  ]);
+
+  const daytimeDataWeek = weekResponse.data
     .filter((data) => RegExNineToFive.test(data[1]))
     .reverse();
-  const daytimeDataMonth = (
-    await Promise.all([
-      getSolar(startingDateMonth, startingTime, endDateAndTime, endTime),
-    ])
-  )[0].data
+  const daytimeDataMonth = monthResponse.data
     .filter((data) => RegExNineToFive.test(data[1]))
     .reverse();
-  const daytimeDataYear = (
-    await Promise.all([
-      getSolar(startingDateYear, startingTime, endDateAndTime, endTime),
-    ])
-  )[0].data
+  const daytimeDataYear = yearResponse.data
     .filter((data) => RegExNineToFive.test(data[1]))
     .reverse();
   const PMDataYear = daytimeDataYear.filter((data) => RegExPM.test(data[1]));
