@@ -11,14 +11,23 @@ const rangeLabels = { week: "7 days", month: "30 days", year: "365 days" };
 // at dusk; the panel is what lets every line stay light at any hour.
 const PANEL = "rounded-2xl bg-slate-900/45 px-4 py-3 backdrop-blur-sm";
 
-export default function Header({ views, availableRanges, peaksVisible = true }) {
+export default function Header({ views, availableRanges, visible = true }) {
   const [faqOpen, setFaqOpen] = useState(false);
+
+  // The question is meant to be met from a standing start, so the header keeps
+  // out of its way entirely: the banner is a title for a page the reader has
+  // not been shown yet, and the peak figures are a crib for the question
+  // itself. Faded rather than unmounted, so the page assembles around the
+  // answer instead of popping in.
+  const reveal = `transition-opacity duration-700 ${
+    visible ? "opacity-100" : "pointer-events-none opacity-0"
+  }`;
 
   return (
     // Fixed rather than in flow: in flow it would both scroll away from the
     // hero and offset every snap stop by its own height.
     <section className="fixed top-0 z-40 flex w-full items-start justify-between p-8 text-sm">
-      <section className={PANEL}>
+      <section className={`${PANEL} ${reveal}`} aria-hidden={!visible} inert={!visible}>
         {/* AWESOME with "ome" struck out and "un" added reads as AWESUN.
             Mirrors the AWFUL treatment on the error page. */}
         <h1 className="font-bold text-3xl" aria-label="Awesun">
@@ -43,16 +52,10 @@ export default function Header({ views, availableRanges, peaksVisible = true }) 
         </button>
       </section>
 
-      {/* The question is meant to be answered from a standing start: a peak
-          figure sitting in the corner is a crib for it, so the whole block
-          stays out until the quiz is behind the reader. Faded rather than
-          unmounted, so it arrives with the graph instead of popping in. */}
       <section
-        className={`${PANEL} text-right transition-opacity duration-700 ${
-          peaksVisible ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-        aria-hidden={!peaksVisible}
-        inert={!peaksVisible}
+        className={`${PANEL} text-right ${reveal}`}
+        aria-hidden={!visible}
+        inert={!visible}
       >
         <div>
           <div className="pt-1 pb-1 underline underline-offset-8">

@@ -241,6 +241,9 @@ export default function SolarApp({ views, availableRanges }) {
   // it has always sat.
   const [sunPosition, setSunPosition] = useState(0.5);
   const [sunDay, setSunDay] = useState(null);
+  // Whether the landing question has been dealt with, by answering it or by
+  // scrolling past it. Until then the page is just the question.
+  const [questionAnswered, setQuestionAnswered] = useState(false);
   // Playback walks the same readings the pointer does, so nothing about the sky
   // needs to know whether a person or the clock is driving it.
   const [playing, setPlaying] = useState(false);
@@ -432,7 +435,7 @@ export default function SolarApp({ views, availableRanges }) {
       <Header
         views={views}
         availableRanges={availableRanges}
-        peaksVisible={stage !== STAGE_LANDING}
+        visible={questionAnswered || stage !== STAGE_LANDING}
       />
       <div
         className="nightGradient"
@@ -512,7 +515,11 @@ export default function SolarApp({ views, availableRanges }) {
         data-stop="0"
         ref={(node) => (stopRefs.current[0] = node)}
       >
-        <Landing headline={headline} onAdvance={advance} />
+        <Landing
+          headline={headline}
+          onAdvance={advance}
+          onAnswered={() => setQuestionAnswered(true)}
+        />
       </div>
       <div
         className="snapStop"

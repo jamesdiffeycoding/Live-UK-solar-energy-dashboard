@@ -81,7 +81,7 @@ const Stage = forwardRef(function Stage({ open, children }, ref) {
   );
 });
 
-export default function Landing({ headline, onAdvance }) {
+export default function Landing({ headline, onAdvance, onAnswered }) {
   // Picked on the client rather than on the server: the question is meant to
   // vary between visits, and a random choice during render would not survive
   // hydration. Null until then, so nothing flickers between two questions.
@@ -97,6 +97,12 @@ export default function Landing({ headline, onAdvance }) {
     setFact(picked);
     setAnswers(answersFor(picked));
   }, []);
+
+  // The page around the panel wants to know the question is behind us, so that
+  // it can put its own furniture back.
+  useEffect(() => {
+    if (revealed) onAnswered?.();
+  }, [revealed, onAnswered]);
 
   // On a short screen the reveal can open below the fold. Waiting for the
   // panel to finish growing before scrolling keeps the two movements in order:
@@ -129,7 +135,7 @@ export default function Landing({ headline, onAdvance }) {
           answered, so it goes: the answer reads better on its own. */}
       <Stage open={!revealed}>
         <p className="text-xs uppercase tracking-[0.2em] text-slate-200">
-          First, a question
+          First, one question
         </p>
 
         <h2 className="pt-3 text-xl font-bold leading-snug sm:text-2xl">
