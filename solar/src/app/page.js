@@ -12,6 +12,11 @@ import {
   getStartingDate,
 } from "./timeAndDateHelpers.js";
 
+// PVLive publishes half-hourly, so anything finer than this is wasted work.
+// Applied to both the page itself and the upstream fetches below.
+// Must be a literal: Next statically analyses this export.
+export const revalidate = 1800;
+
 // A usable row is [pes_id, datetime string, generation in MW].
 // Anything else is dropped rather than allowed to poison Math.max, which
 // would turn every bar height into NaN and render an empty graph.
@@ -33,10 +38,7 @@ async function getSolar(startingDate, startingTime, endDate, endTime) {
 
   try {
     const res = await fetch(apiUrl, {
-      headers: {
-        "Cache-Control": "no-cache",
-      },
-      cache: "no-store",
+      next: { revalidate: 1800 },
     });
 
     if (!res.ok) {

@@ -79,12 +79,14 @@ export function getEndDate() {
   return `${year}-${month}-${day}`;
 }
 
+// Floored to the containing half hour. PVLive publishes on a half-hourly
+// cadence, so the extra precision bought nothing but changed the request URL
+// every second, which meant the fetch cache could never produce a hit.
 export function getEndTime() {
   const now = new Date();
   const hours = String(now.getHours()).padStart(2, "0");
-  const minutes = String(now.getMinutes()).padStart(2, "0");
-  const seconds = String(now.getSeconds()).padStart(2, "0");
-  return `${hours}:${minutes}:${seconds}`;
+  const minutes = now.getMinutes() < 30 ? "00" : "30";
+  return `${hours}:${minutes}:00`;
 }
 
 export function getStartingDate(numberOfDays) {
