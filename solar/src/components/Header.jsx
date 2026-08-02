@@ -5,7 +5,9 @@ const rangeLabels = { week: "7 days", month: "30 days", year: "365 days" };
 
 export default function Header({ views, availableRanges }) {
   return (
-    <section className="flex justify-between p-8 text-sm">
+    // Fixed rather than in flow: in flow it would both scroll away from the
+    // hero and offset every snap stop by its own height.
+    <section className="fixed top-0 z-40 flex w-full justify-between p-8 text-sm">
       <section>
         {/* AWESOME with "ome" struck out and "un" added reads as AWESUN.
             Mirrors the AWFUL treatment on the error page. */}

@@ -6,8 +6,25 @@
   color: white;
 }
 
+/* Three full-height stops. Mandatory snapping is what gives the page its
+   resistance: a small scroll settles back onto the current stop, and only a
+   firmer one carries you to the next. */
+html {
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+}
+
+.snapStop {
+  height: 100vh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+/* The sky is the constant backdrop behind every stop, so it is fixed rather
+   than absolute; as absolute it would scroll away after the first screen. */
 .backgroundGradient {
-  position: absolute;
+  position: fixed;
+  top: 0;
   height: 100vh;
   width: 100vw;
   margin: 0;
@@ -28,6 +45,33 @@
 
 .supersmalltext {
   font-size: 9px;
+}
+
+.scroll-hint-chevron {
+  animation: nudge 1.8s ease-in-out infinite;
+}
+
+@keyframes nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+
+/* Snapping and a looping chevron are both motion the user may have asked the
+   system to suppress. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-snap-type: none;
+    scroll-behavior: auto;
+  }
+
+  .scroll-hint-chevron {
+    animation: none;
+  }
 }
 
 .sunGrid {

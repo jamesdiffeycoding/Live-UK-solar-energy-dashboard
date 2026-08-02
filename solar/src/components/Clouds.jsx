@@ -4,7 +4,7 @@ import "../App.css";
 const Clouds = ({ cloudOpacityState }) => {
   return (
     <>
-      <section className="grid absolute w-screen h-screen top-0 overflow-hidden">
+      <section className="grid fixed w-screen h-screen top-0 overflow-hidden">
         <img
           className="row-start-2 moving-clouds"
           src="./clouds-wide.png"
@@ -19,7 +19,7 @@ const Clouds = ({ cloudOpacityState }) => {
           }}
         />
       </section>
-      <section className="grid absolute w-screen h-screen top-0 overflow-hidden">
+      <section className="grid fixed w-screen h-screen top-0 overflow-hidden">
         <img
           className="row-start-2 moving-clouds"
           src="./clouds-wide.png"
@@ -34,7 +34,7 @@ const Clouds = ({ cloudOpacityState }) => {
           }}
         />
       </section>
-      <section className="grid absolute w-screen h-screen top-0 overflow-hidden">
+      <section className="grid fixed w-screen h-screen top-0 overflow-hidden">
         <img
           className="row-start-2 moving-clouds"
           src="./clouds-wide.png"
@@ -49,7 +49,7 @@ const Clouds = ({ cloudOpacityState }) => {
           }}
         />
       </section>
-      <section className="grid absolute w-screen h-screen top-0 overflow-hidden">
+      <section className="grid fixed w-screen h-screen top-0 overflow-hidden">
         <img
           className="row-start-2 moving-clouds"
           src="./clouds-wide.png"

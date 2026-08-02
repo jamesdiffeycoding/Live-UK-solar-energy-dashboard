@@ -4,7 +4,7 @@ import "../App.css";
 const Sun = ({ sunSize }) => {
   return (
     <>
-      <section className="sunGrid grid absolute w-screen h-screen top-0">
+      <section className="sunGrid grid fixed w-screen h-screen top-0">
         <div className="col-start-2 row-start-2 flex text-center justify-center items-center w-full">
           <div className="heroContainer pb-square h-full flex justify-center items-center aspect-square">
             <div

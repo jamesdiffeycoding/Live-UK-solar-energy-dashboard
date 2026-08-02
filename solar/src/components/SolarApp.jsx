@@ -1,10 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Header from "./Header";
 import Sun from "./Sun";
 import Clouds from "./Clouds";
 import Graph from "./Graph.jsx";
+import DataTable from "./DataTable.jsx";
 import GraphSelector from "./GraphSelector";
+import ScrollHint from "./ScrollHint";
 import BarHoveredInformation from "./BarHoveredInformation";
 import {
   formatDateForDisplay,
@@ -30,9 +32,17 @@ const rangeDisplay = {
   },
 };
 
+// Two stops, not three. A middle "graph" stop only resized what was already on
+// screen, so scrolling onto it read as nothing having happened. The graph is
+// part of the first stop instead, at full size from the start.
+const STOP_COUNT = 2;
+const STAGE_TABLE = 1;
+
 export default function SolarApp({ views, availableRanges }) {
   // State
   const [graphToDisplay, setGraphToDisplay] = useState(availableRanges[0]);
+  const [stage, setStage] = useState(0);
+  const stopRefs = useRef([]);
   const [sunSize, setSunSize] = useState(60); // default size
   const [cloudOpacityState, setCloudOpacityState] = useState(20);
   const [barHoveredInformation, setBarHoveredInformation] = useState(
@@ -42,6 +52,31 @@ export default function SolarApp({ views, availableRanges }) {
 
   const handleDisplay = (event) => {
     setGraphToDisplay(event.target.textContent);
+  };
+
+  // Which stop is on screen drives the sun, the graph height and the hint
+  // label. Reading it from the scroll position rather than from a click keeps
+  // the wheel, the keyboard and the scrollbar all in agreement.
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setStage(Number(entry.target.dataset.stop));
+          }
+        });
+      },
+      { threshold: 0.55 }
+    );
+
+    stopRefs.current.forEach((node) => node && observer.observe(node));
+    return () => observer.disconnect();
+  }, []);
+
+  const advance = () => {
+    stopRefs.current[Math.min(stage + 1, STOP_COUNT - 1)]?.scrollIntoView({
+      behavior: "smooth",
+    });
   };
 
   function handleBarHover(newValue) {
@@ -64,10 +99,32 @@ export default function SolarApp({ views, availableRanges }) {
 
   return (
     <main>
+      {/* Sky furniture is fixed, so it stays put while the stops scroll past. */}
       <Header views={views} availableRanges={availableRanges} />
       <Sun sunSize={sunSize} />
       <Clouds cloudOpacityState={cloudOpacityState} />
-      <section className="flex w-full justify-between pl-9 pr-9 fixed bottom-[37%] z-50">
+
+      <Graph
+        dataToDisplay={activeView.data}
+        peakValue={activeView.peak}
+        labelFormatter={rangeDisplay[graphToDisplay].labelFormatter}
+        labelScheme={rangeDisplay[graphToDisplay].labelScheme}
+        handleBarHover={handleBarHover}
+        barHovered={barHovered}
+        hidden={stage === STAGE_TABLE}
+      />
+
+      {/* Sits with the graph on the first stop, and only while the user is
+          actually doing something. */}
+      <section
+        className={`flex w-full items-end justify-between gap-4 pl-9 pr-9 fixed bottom-[37%] z-50
+          transition-opacity duration-500 ${
+            stage === STAGE_TABLE
+              ? "pointer-events-none opacity-0"
+              : "opacity-100"
+          }`}
+        aria-hidden={stage === STAGE_TABLE}
+      >
         <GraphSelector
           graphToDisplay={graphToDisplay}
           handleDisplay={handleDisplay}
@@ -78,14 +135,27 @@ export default function SolarApp({ views, availableRanges }) {
           barHoveredInformation={barHoveredInformation}
         />
       </section>
-      <Graph
-        dataToDisplay={activeView.data}
-        peakValue={activeView.peak}
-        labelFormatter={rangeDisplay[graphToDisplay].labelFormatter}
-        labelScheme={rangeDisplay[graphToDisplay].labelScheme}
-        handleBarHover={handleBarHover}
-        barHovered={barHovered}
+
+      {/* The stops themselves carry no backdrop: they exist to give the
+          scroller something to snap to. */}
+      <div
+        className="snapStop"
+        data-stop="0"
+        ref={(node) => (stopRefs.current[0] = node)}
       />
+      <div
+        className="snapStop relative z-50 flex items-end"
+        data-stop="1"
+        ref={(node) => (stopRefs.current[1] = node)}
+      >
+        <DataTable
+          dataToDisplay={activeView.data}
+          peakValue={activeView.peak}
+          range={graphToDisplay}
+        />
+      </div>
+
+      <ScrollHint stage={stage} stageCount={STOP_COUNT} onAdvance={advance} />
     </main>
   );
 }
