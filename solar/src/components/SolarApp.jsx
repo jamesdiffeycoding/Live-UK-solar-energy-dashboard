@@ -7,6 +7,7 @@ import Graph from "./Graph.jsx";
 import DataTable from "./DataTable.jsx";
 import GraphSelector from "./GraphSelector";
 import ScrollHint from "./ScrollHint";
+import Landing from "./Landing";
 import BarHoveredInformation from "./BarHoveredInformation";
 import {
   formatDateForDisplay,
@@ -14,7 +15,10 @@ import {
   formatDateToGetMonthOnly,
   formatDateToGetNumberAndMonthOnly,
   getTimeHalfHourLater,
+  ukDayKey,
+  ukFractionalHour,
 } from "@/app/timeAndDateHelpers.js";
+import { formatPowerWithUnit } from "@/app/powerFormat";
 
 // How each range is labelled and broken up on the graph.
 const rangeDisplay = {
@@ -32,11 +36,41 @@ const rangeDisplay = {
   },
 };
 
-// Two stops, not three. A middle "graph" stop only resized what was already on
-// screen, so scrolling onto it read as nothing having happened. The graph is
-// part of the first stop instead, at full size from the start.
-const STOP_COUNT = 2;
-const STAGE_TABLE = 1;
+// Three stops: the landing panel that says what the numbers are worth, then the
+// graph, then the table. The graph and the table are one stop each; there is
+// deliberately no intermediate "bigger graph" stop, since resizing what is
+// already on screen reads as nothing having happened.
+const STOP_COUNT = 3;
+const STAGE_LANDING = 0;
+const STAGE_GRAPH = 1;
+const STAGE_TABLE = 2;
+
+// What counts as generation worth quoting live. Below this share of the week's
+// peak — overnight, or a thoroughly grey afternoon — the current figure is a
+// weak opening, so the week's peak is used instead.
+const SUBSTANTIAL_SHARE = 0.5;
+
+// The single number the landing page counts up to: what the country is making
+// now if that is a figure worth showing, and otherwise the best the week
+// managed.
+function headlineFor(view) {
+  const latest = view.data[view.data.length - 1];
+  const current = latest ? latest[2] : 0;
+
+  if (current >= SUBSTANTIAL_SHARE * view.peak) {
+    return {
+      megawatts: current,
+      label: "UK solar is currently generating",
+      when: `As of${formatDateForDisplay(latest[1])}`,
+    };
+  }
+
+  return {
+    megawatts: view.peak,
+    label: "UK solar peaked at",
+    when: `${view.peakDayAndTime}-${getTimeHalfHourLater(view.peakAt)}`,
+  };
+}
 
 // The range controls are chrome rather than content, so they stay out of the
 // picture until the user reaches for them and withdraw once things go still.
@@ -70,7 +104,7 @@ function useRecentActivity(idleMs) {
   return active;
 }
 
-// Dusk, keyed to the clock rather than to the meter. Full night before
+// Dusk, keyed to the UK clock rather than to the meter. Full night before
 // DAWN_START and after DUSK_END, full day between DAY_START and DAY_END, and a
 // gradual crossing in between, so walking the bars through an evening watches
 // the sky go over instead of snapping between two neighbours.
@@ -97,11 +131,8 @@ const clamp01 = (value) => Math.min(1, Math.max(0, value));
 // of the dawn and dusk windows.
 const smoothstep = (value) => value * value * (3 - 2 * value);
 
-// Fractional hours, so a half-hourly reading lands halfway between two hours
-// rather than being rounded onto one of them.
 function nightnessForTime(dateString) {
-  const date = new Date(dateString);
-  const hour = date.getHours() + date.getMinutes() / 60;
+  const hour = ukFractionalHour(dateString);
 
   if (hour <= DAWN_START || hour >= DUSK_END) return 1;
   if (hour >= DAY_START && hour <= DAY_END) return 0;
@@ -126,15 +157,11 @@ const BELOW_HORIZON = 0.2;
 // Where the sun sits along its arc: 0 at sunrise, 1 at sunset, and outside that
 // range overnight.
 function sunPositionForTime(dateString) {
-  const date = new Date(dateString);
-  const hour = date.getHours() + date.getMinutes() / 60;
+  const hour = ukFractionalHour(dateString);
   const position = (hour - SUNRISE) / (SUNSET - SUNRISE);
 
   return Math.min(1 + BELOW_HORIZON, Math.max(-BELOW_HORIZON, position));
 }
-
-// Local calendar day, used only to tell the sun when it has crossed midnight.
-const dayKeyForTime = (dateString) => new Date(dateString).toDateString();
 
 export default function SolarApp({ views, availableRanges }) {
   // State
@@ -199,14 +226,14 @@ export default function SolarApp({ views, availableRanges }) {
       GLOOM_MAX * smoothstep(clamp01((GLOOM_FLOOR - share) / GLOOM_FLOOR));
     setNightness(clamp01(hourly + (1 - hourly) * gloom));
     setSunPosition(sunPositionForTime(newValue[1]));
-    setSunDay(dayKeyForTime(newValue[1]));
+    setSunDay(ukDayKey(newValue[1]));
     // Cloud cover stands in for weak generation, but overnight the weakness is
     // the hour, not the weather: left alone every night reads as solidly
     // overcast. Thin the cover as the sky darkens so a clear night stays clear.
     setCloudOpacityState(
       Math.max(0, 100 - share * 120) * (1 - NIGHT_CLOUD_THINNING * hourly)
     );
-    setBarHovered(`${newValueRounded} MW`);
+    setBarHovered(formatPowerWithUnit(newValueRounded));
     setBarHoveredInformation(
       `${formatDateForDisplay(newValue[1])}-${getTimeHalfHourLater(
         newValue[1]
@@ -215,7 +242,10 @@ export default function SolarApp({ views, availableRanges }) {
   }
 
   const activeView = views[graphToDisplay];
-  const controlsVisible = isActive && stage !== STAGE_TABLE;
+  const controlsVisible = isActive && stage === STAGE_GRAPH;
+  // The landing figure is a fact about the week, not about whichever range the
+  // user later picks, so it does not follow graphToDisplay.
+  const headline = headlineFor(views.week ?? views[availableRanges[0]]);
 
   return (
     <main>
@@ -241,7 +271,7 @@ export default function SolarApp({ views, availableRanges }) {
         labelScheme={rangeDisplay[graphToDisplay].labelScheme}
         handleBarHover={handleBarHover}
         barHovered={barHovered}
-        hidden={stage === STAGE_TABLE}
+        hidden={stage !== STAGE_GRAPH}
       />
 
       {/* Sits with the graph on the first stop, and only while the user is
@@ -270,17 +300,27 @@ export default function SolarApp({ views, availableRanges }) {
         />
       </section>
 
-      {/* The stops themselves carry no backdrop: they exist to give the
-          scroller something to snap to. */}
+      {/* Apart from the landing panel the stops carry no backdrop: they exist
+          to give the scroller something to snap to. The panel is anchored near
+          the top rather than centred: centred, it would grow in both directions
+          when the answer opens and carry the question up the screen with it. */}
       <div
-        className="snapStop"
+        className="snapStop relative z-50 flex items-start justify-center
+          overflow-y-auto px-6 pb-16 pt-40 sm:pt-36"
         data-stop="0"
         ref={(node) => (stopRefs.current[0] = node)}
+      >
+        <Landing headline={headline} onAdvance={advance} />
+      </div>
+      <div
+        className="snapStop"
+        data-stop="1"
+        ref={(node) => (stopRefs.current[1] = node)}
       />
       <div
         className="snapStop relative z-50 flex items-end"
-        data-stop="1"
-        ref={(node) => (stopRefs.current[1] = node)}
+        data-stop="2"
+        ref={(node) => (stopRefs.current[2] = node)}
       >
         <DataTable
           dataToDisplay={activeView.data}

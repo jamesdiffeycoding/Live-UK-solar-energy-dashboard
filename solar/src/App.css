@@ -61,6 +61,14 @@ html {
   transition: opacity 400ms ease-out;
 }
 
+/* The landing panel's answer opens by growing its own row rather than by
+   appearing at full height, so the panel resizes under the question instead of
+   the question jumping up the screen. Tailwind has no utility for animating
+   grid-template-rows, hence the hand-written rule. */
+.revealPanel {
+  transition: grid-template-rows 700ms ease-out;
+}
+
 .customContainer {
   height: 100vh;
   width: 100vw;
@@ -95,6 +103,10 @@ html {
 
   .scroll-hint-chevron {
     animation: none;
+  }
+
+  .revealPanel {
+    transition: none;
   }
 }
 

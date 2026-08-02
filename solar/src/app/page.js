@@ -4,7 +4,7 @@ import SolarApp from "@/components/SolarApp.jsx";
 
 // DATE AND TIME VARIABLES
 import {
-  RegExPM,
+  isUkAfternoonSlot,
   formatDateForDisplay,
   getEndTime,
   getEndDate,
@@ -85,7 +85,7 @@ function buildView(rows, timeFilter) {
     (a, b) => new Date(a[1]).getTime() - new Date(b[1]).getTime()
   );
   const display = timeFilter
-    ? series.filter((row) => timeFilter.test(row[1]))
+    ? series.filter((row) => timeFilter(row[1]))
     : series;
 
   if (series.length === 0 || display.length === 0) return null;
@@ -93,12 +93,16 @@ function buildView(rows, timeFilter) {
   const peak = Math.max(...series.map((row) => row[2]));
   if (!Number.isFinite(peak) || peak <= 0) return null;
 
+  const peakAt = series.find((row) => row[2] === peak)[1];
+
   return {
     data: display,
     peak,
-    peakDayAndTime: formatDateForDisplay(
-      series.find((row) => row[2] === peak)[1]
-    ),
+    // Both the raw timestamp and the formatted one. Anything that needs to do
+    // arithmetic on the peak's time works from the ISO string: re-parsing the
+    // display string would read a UK wall-clock time as the machine's own.
+    peakAt,
+    peakDayAndTime: formatDateForDisplay(peakAt),
   };
 }
 
@@ -118,7 +122,7 @@ export default async function Page() {
   const views = {
     week: buildView(weekRows, null),
     month: buildView(monthRows, null),
-    year: buildView(yearRows, RegExPM),
+    year: buildView(yearRows, isUkAfternoonSlot),
   };
 
   const availableRanges = Object.keys(views).filter((range) => views[range]);

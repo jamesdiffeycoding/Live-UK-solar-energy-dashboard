@@ -3,7 +3,7 @@
 // A slim band pinned to the bottom of the viewport. It is the only thing
 // telling the user there is anything below the graph, so it stays put rather
 // than appearing on scroll, and it names the stop it would take you to.
-const NEXT_STOP_LABEL = ["Wanna see the numbers?"];
+const NEXT_STOP_LABEL = ["See the last few days", "Wanna see the numbers?"];
 
 export default function ScrollHint({ stage, stageCount, onAdvance }) {
   const isLastStop = stage >= stageCount - 1;

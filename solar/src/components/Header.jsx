@@ -1,5 +1,6 @@
 "use client";
 import { getTimeHalfHourLater } from "@/app/timeAndDateHelpers";
+import { formatPowerWithUnit } from "@/app/powerFormat";
 
 const rangeLabels = { week: "7 days", month: "30 days", year: "365 days" };
 
@@ -24,8 +25,10 @@ export default function Header({ views, availableRanges }) {
         </p>
         <div className="text-xs">
           <div className="pt-1">
-            1 MW is enough to power{" "}
-            <span className="text-yellow-500">10,000</span> homes.{" "}
+            {/* The average household draws about 0.31 kW, so a gigawatt covers
+                roughly 3.2 million of them. */}
+            1 GW is enough to power{" "}
+            <span className="text-yellow-500">3.2 million</span> homes.{" "}
           </div>
         </div>
       </section>
@@ -39,12 +42,12 @@ export default function Header({ views, availableRanges }) {
               <div className="pt-1">
                 {rangeLabels[range]}:
                 <span className="text-yellow-500">
-                  {` ${views[range].peak.toFixed(0)}`} MW
+                  {` ${formatPowerWithUnit(views[range].peak)}`}
                 </span>{" "}
               </div>
               <div className="supersmalltext text-slate-900">
                 {views[range].peakDayAndTime}-
-                {getTimeHalfHourLater(views[range].peakDayAndTime)}
+                {getTimeHalfHourLater(views[range].peakAt)}
               </div>
             </div>
           ))}
