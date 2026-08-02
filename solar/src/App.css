@@ -30,41 +30,6 @@
   font-size: 9px;
 }
 
-.graph {
-  background-color: transparent;
-  display: flex;
-  justify-content: center;
-  flex-wrap: nowrap;
-  width: 100%;
-  height: 30vh;
-  position: absolute;
-  bottom: 1rem;
-  min-height: 100px;
-}
-
-.vertical-rectangle {
-  display: flex;
-  height: 100%;
-  align-items: flex-end;
-}
-
-.break {
-  background-color: rgb(255, 255, 255);
-  width: 1px;
-  opacity: 99%;
-  height: 50%;
-}
-
-.break2 {
-  background-color: rgb(255, 255, 255);
-  width: 1px;
-  height: 100%;
-}
-
-.vertical-rectangle:hover {
-  background-color: rgb(255, 182, 80) !important;
-}
-
 .sunGrid {
   z-index: -20;
   grid-template-columns: 23% 54% 23%;

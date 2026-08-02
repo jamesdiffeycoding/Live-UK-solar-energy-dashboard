@@ -18,17 +18,14 @@ import {
 const rangeDisplay = {
   week: {
     labelFormatter: formatDateToGetDayOnly,
-    labelBreakTime: "09:00:00",
     labelScheme: "days",
   },
   month: {
     labelFormatter: formatDateToGetNumberAndMonthOnly,
-    labelBreakTime: "09:00:00",
     labelScheme: "weeks",
   },
   year: {
     labelFormatter: formatDateToGetMonthOnly,
-    labelBreakTime: "14:00:00",
     labelScheme: "months",
   },
 };
@@ -85,7 +82,6 @@ export default function SolarApp({ views, availableRanges }) {
         dataToDisplay={activeView.data}
         peakValue={activeView.peak}
         labelFormatter={rangeDisplay[graphToDisplay].labelFormatter}
-        labelBreakTime={rangeDisplay[graphToDisplay].labelBreakTime}
         labelScheme={rangeDisplay[graphToDisplay].labelScheme}
         handleBarHover={handleBarHover}
         barHovered={barHovered}
