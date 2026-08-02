@@ -72,7 +72,6 @@ export function formatDateToGetMonthOnly(dateString) {
 }
 
 export function getEndDate() {
-  console.log("GetEndDate called");
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -81,7 +80,6 @@ export function getEndDate() {
 }
 
 export function getEndTime() {
-  console.log("GetEndTime called");
   const now = new Date();
   const hours = String(now.getHours()).padStart(2, "0");
   const minutes = String(now.getMinutes()).padStart(2, "0");
@@ -90,7 +88,6 @@ export function getEndTime() {
 }
 
 export function getStartingDate(numberOfDays) {
-  console.log("GetStartingDate called");
   let EndDate = getEndDate();
   const dateObject = new Date(EndDate);
   dateObject.setDate(dateObject.getDate() - numberOfDays);
