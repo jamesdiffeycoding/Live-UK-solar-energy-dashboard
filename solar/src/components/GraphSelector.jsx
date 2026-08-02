@@ -1,7 +1,15 @@
 import React from "react";
 
-export default function GraphSelector({ graphToDisplay, handleDisplay }) {
-  const options = ["week", "month", "year"];
+export default function GraphSelector({
+  graphToDisplay,
+  handleDisplay,
+  availableRanges,
+}) {
+  // Only ranges that actually returned usable data are offered. A range that
+  // fails disappears from the selector instead of breaking the graph.
+  const options = availableRanges;
+
+  if (options.length < 2) return <div />;
 
   return (
     <div className="text-slate-600 text-xs sm:text-xs md:text-base lg:text-base xl:text-base 2xl:text-base">

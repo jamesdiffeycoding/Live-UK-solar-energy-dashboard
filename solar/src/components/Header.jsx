@@ -1,19 +1,9 @@
 "use client";
 import { getTimeHalfHourLater } from "@/app/timeAndDateHelpers";
 
-export default function Header({ peakData }) {
-  const {
-    peakFromWeek,
-    peakFromMonth,
-    peakFromYear,
-    peakFromMonthDayAndTime,
-    peakFromYearDayAndTime,
-    peakFromWeekDayAndTime,
-  } = peakData;
-  let endOfPeakWindowWeek = getTimeHalfHourLater(peakFromWeekDayAndTime);
-  let endOfPeakWindowMonth = getTimeHalfHourLater(peakFromMonthDayAndTime);
-  let endOfPeakWindowYear = getTimeHalfHourLater(peakFromYearDayAndTime);
+const rangeLabels = { week: "7 days", month: "30 days", year: "365 days" };
 
+export default function Header({ views, availableRanges }) {
   return (
     <section className="flex justify-between p-8 text-sm">
       <section>
@@ -34,33 +24,20 @@ export default function Header({ peakData }) {
           <div className="pt-1 pb-1 underline underline-offset-8">
             Recent peak production{" "}
           </div>
-          <div className="pt-1">
-            7 days:
-            <span className="text-yellow-500">
-              {` ${peakFromWeek.toFixed(0)}`} MW
-            </span>{" "}
-          </div>
-          <div className="supersmalltext text-slate-900">
-            {peakFromWeekDayAndTime}-{endOfPeakWindowWeek}
-          </div>
-          <div className="pt-1">
-            30 days:
-            <span className="text-yellow-500">
-              {` ${peakFromMonth.toFixed(0)}`} MW
-            </span>{" "}
-          </div>
-          <div className="supersmalltext text-slate-900">
-            {peakFromMonthDayAndTime}-{endOfPeakWindowMonth}
-          </div>
-          <div className="pt-1">
-            365 days:
-            <span className="text-yellow-500">
-              {` ${peakFromYear.toFixed(0)}`} MW
-            </span>{" "}
-          </div>
-          <div className="supersmalltext text-slate-900">
-            {peakFromYearDayAndTime}-{endOfPeakWindowYear}
-          </div>
+          {availableRanges.map((range) => (
+            <div key={range}>
+              <div className="pt-1">
+                {rangeLabels[range]}:
+                <span className="text-yellow-500">
+                  {` ${views[range].peak.toFixed(0)}`} MW
+                </span>{" "}
+              </div>
+              <div className="supersmalltext text-slate-900">
+                {views[range].peakDayAndTime}-
+                {getTimeHalfHourLater(views[range].peakDayAndTime)}
+              </div>
+            </div>
+          ))}
           <hr
             className="pt-1 pb-1 hide-when-portrait"
             style={{ borderTop: "dotted 1.5px" }}

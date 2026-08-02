@@ -14,14 +14,28 @@ import {
   getTimeHalfHourLater,
 } from "@/app/timeAndDateHelpers.js";
 
-export default function SolarApp({ allData }) {
-  // Destructure data
-  const { displayData, peakData } = allData;
-  const { peakFromWeek, peakFromMonth, peakFromYear } = peakData;
-  const { dataWeek, dataMonth, dataYear } = displayData;
+// How each range is labelled and broken up on the graph.
+const rangeDisplay = {
+  week: {
+    labelFormatter: formatDateToGetDayOnly,
+    labelBreakTime: "09:00:00",
+    labelScheme: "days",
+  },
+  month: {
+    labelFormatter: formatDateToGetNumberAndMonthOnly,
+    labelBreakTime: "09:00:00",
+    labelScheme: "weeks",
+  },
+  year: {
+    labelFormatter: formatDateToGetMonthOnly,
+    labelBreakTime: "14:00:00",
+    labelScheme: "months",
+  },
+};
 
+export default function SolarApp({ views, availableRanges }) {
   // State
-  const [graphToDisplay, setGraphToDisplay] = useState("week");
+  const [graphToDisplay, setGraphToDisplay] = useState(availableRanges[0]);
   const [sunSize, setSunSize] = useState(60); // default size
   const [cloudOpacityState, setCloudOpacityState] = useState(20);
   const [barHoveredInformation, setBarHoveredInformation] = useState(
@@ -34,11 +48,7 @@ export default function SolarApp({ allData }) {
   };
 
   function handleBarHover(newValue) {
-    let peakForComparison = {
-      week: peakFromWeek,
-      month: peakFromMonth,
-      year: peakFromYear,
-    }[graphToDisplay];
+    const peakForComparison = views[graphToDisplay].peak;
 
     let newValueRounded = Math.ceil(newValue[2]);
     setSunSize(20 + (newValueRounded / peakForComparison) * 80);
@@ -53,39 +63,18 @@ export default function SolarApp({ allData }) {
     );
   }
 
-  const graphConfig = {
-    week: {
-      dataToDisplay: dataWeek,
-      peakValue: peakFromWeek,
-      labelFormatter: formatDateToGetDayOnly,
-      labelBreakTime: "09:00:00",
-      labelScheme: "days",
-    },
-    month: {
-      dataToDisplay: dataMonth,
-      peakValue: peakFromMonth,
-      labelFormatter: formatDateToGetNumberAndMonthOnly,
-      labelBreakTime: "09:00:00",
-      labelScheme: "weeks",
-    },
-    year: {
-      dataToDisplay: dataYear,
-      peakValue: peakFromYear,
-      labelFormatter: formatDateToGetMonthOnly,
-      labelBreakTime: "14:00:00",
-      labelScheme: "months",
-    },
-  };
+  const activeView = views[graphToDisplay];
 
   return (
     <main>
-      <Header peakData={peakData} />
+      <Header views={views} availableRanges={availableRanges} />
       <Sun sunSize={sunSize} />
       <Clouds cloudOpacityState={cloudOpacityState} />
       <section className="flex w-full justify-between pl-9 pr-9 fixed bottom-[37%] z-50">
         <GraphSelector
           graphToDisplay={graphToDisplay}
           handleDisplay={handleDisplay}
+          availableRanges={availableRanges}
         />
         <BarHoveredInformation
           barHovered={barHovered}
@@ -93,11 +82,11 @@ export default function SolarApp({ allData }) {
         />
       </section>
       <Graph
-        dataToDisplay={graphConfig[graphToDisplay].dataToDisplay}
-        peakValue={graphConfig[graphToDisplay].peakValue}
-        labelFormatter={graphConfig[graphToDisplay].labelFormatter}
-        labelBreakTime={graphConfig[graphToDisplay].labelBreakTime}
-        labelScheme={graphConfig[graphToDisplay].labelScheme}
+        dataToDisplay={activeView.data}
+        peakValue={activeView.peak}
+        labelFormatter={rangeDisplay[graphToDisplay].labelFormatter}
+        labelBreakTime={rangeDisplay[graphToDisplay].labelBreakTime}
+        labelScheme={rangeDisplay[graphToDisplay].labelScheme}
         handleBarHover={handleBarHover}
         barHovered={barHovered}
       />
