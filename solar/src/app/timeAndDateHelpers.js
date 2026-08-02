@@ -1,5 +1,3 @@
-export const RegExNineToFive =
-  /^(\d{4}-\d{2}-\d{2}T(?:0[9]|1[0-6]):[0-5]\d:00Z)$/;
 export const RegExPM = /^(\d{4}-\d{2}-\d{2}T14:00:00Z)$/;
 
 export function formatDateForDisplay(dateString) {

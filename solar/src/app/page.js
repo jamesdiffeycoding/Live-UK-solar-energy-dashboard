@@ -4,7 +4,6 @@ import SolarApp from "@/components/SolarApp.jsx";
 
 // DATE AND TIME VARIABLES
 import {
-  RegExNineToFive,
   RegExPM,
   formatDateForDisplay,
   getEndTime,
@@ -71,26 +70,34 @@ async function getSolar(startingDate, startingTime, endDate, endTime) {
 }
 
 // Builds one range's view, or null if there is nothing worth rendering.
-// timeFilter narrows the bars shown (the year view plots 2PM only) while the
-// peak is still taken across the whole daytime window.
+// PVLive reports every half hour around the clock and simply returns 0 through
+// the night, so the full series is plotted: the overnight zeroes are real
+// readings and drawing them gives a continuous line rather than a row of
+// disconnected daytime humps. timeFilter thins the series where a reading per
+// half hour would be too dense to read (the year view plots 2PM only), while
+// the peak is always taken across every reading in the range.
 function buildView(rows, timeFilter) {
   if (!rows) return null;
 
-  const daytime = rows.filter((row) => RegExNineToFive.test(row[1])).reverse();
+  // The API returns newest first. Sort rather than reverse so the order does
+  // not depend on that staying true.
+  const series = [...rows].sort(
+    (a, b) => new Date(a[1]).getTime() - new Date(b[1]).getTime()
+  );
   const display = timeFilter
-    ? daytime.filter((row) => timeFilter.test(row[1]))
-    : daytime;
+    ? series.filter((row) => timeFilter.test(row[1]))
+    : series;
 
-  if (daytime.length === 0 || display.length === 0) return null;
+  if (series.length === 0 || display.length === 0) return null;
 
-  const peak = Math.max(...daytime.map((row) => row[2]));
+  const peak = Math.max(...series.map((row) => row[2]));
   if (!Number.isFinite(peak) || peak <= 0) return null;
 
   return {
     data: display,
     peak,
     peakDayAndTime: formatDateForDisplay(
-      daytime.find((row) => row[2] === peak)[1]
+      series.find((row) => row[2] === peak)[1]
     ),
   };
 }
