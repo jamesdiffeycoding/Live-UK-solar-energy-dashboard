@@ -499,6 +499,19 @@ export default function SolarApp({ views, availableRanges }) {
   // A run counts as activity: the reading it is on is the whole point of
   // watching, so the readout must not idle away underneath it.
   const controlsVisible = (isActive || playing) && stage === STAGE_GRAPH;
+  // The graph's two pieces of furniture come and go together, but they no
+  // longer sit in the same box: on a phone the ranges go to the top of the
+  // screen, so each is positioned in its own right and they share these
+  // instead. Slow to arrive so the controls drift in rather than blink on;
+  // quicker to leave, since by then the user has moved on.
+  const controlsFade = `transition-opacity ${
+    controlsVisible ? "opacity-100" : "pointer-events-none opacity-0"
+  }`;
+  const controlsFadeStyle = {
+    transitionDuration: controlsVisible ? "1600ms" : "700ms",
+    transitionTimingFunction: "ease-out",
+  };
+
   // The landing figure is a fact about the week, not about whichever range the
   // user later picks, so it does not follow graphToDisplay.
   const headline = headlineFor(views.week ?? views[availableRanges[0]]);
@@ -562,19 +575,14 @@ export default function SolarApp({ views, availableRanges }) {
         />
       )}
 
-      {/* Sits with the graph on the first stop, and only while the user is
-          actually doing something. */}
+      {/* The ranges. Centred at the top of a phone screen, where the header
+          corners are not shown and there is nothing else to crowd, rather than
+          squeezed in beside the caption; from the middle breakpoint up they go
+          back to the left of the graph, bottom edges level with the caption. */}
       <section
-        className={`fixed bottom-[37%] z-50 flex w-full items-end justify-between
-          gap-2 px-4 transition-opacity sm:gap-4 sm:px-9 ${
-            controlsVisible ? "opacity-100" : "pointer-events-none opacity-0"
-          }`}
-        style={{
-          // Slow to arrive so the controls drift in rather than blink on;
-          // quicker to leave, since by then the user has moved on.
-          transitionDuration: controlsVisible ? "1600ms" : "700ms",
-          transitionTimingFunction: "ease-out",
-        }}
+        className={`fixed left-1/2 top-4 z-50 flex -translate-x-1/2 justify-center
+          sm:bottom-[37%] sm:left-9 sm:top-auto sm:translate-x-0 ${controlsFade}`}
+        style={controlsFadeStyle}
         aria-hidden={!controlsVisible}
       >
         <GraphSelector
@@ -583,6 +591,16 @@ export default function SolarApp({ views, availableRanges }) {
           availableRanges={availableRanges}
           dimmed={playing}
         />
+      </section>
+
+      {/* Sits with the graph on the first stop, and only while the user is
+          actually doing something. */}
+      <section
+        className={`fixed bottom-[37%] z-50 flex w-full justify-end px-4
+          sm:px-9 ${controlsFade}`}
+        style={controlsFadeStyle}
+        aria-hidden={!controlsVisible}
+      >
         <BarHoveredInformation
           barHovered={barHovered}
           barHoveredInformation={barHoveredInformation}
