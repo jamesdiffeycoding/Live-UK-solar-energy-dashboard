@@ -56,6 +56,17 @@ export function formatDateForDisplay(dateString) {
 // const formattedDate = formatDate(dateString);
 // console.log(formattedDate);
 
+// PVLive stamps a reading with the END of the half hour it covers: on the
+// shortest day, when the sun is up at 08:04, the first reading with anything in
+// it is the one stamped 08:30. So the half hour a reading describes STARTS
+// here, and this is the time to quote when the question is when something
+// began rather than what a reading is called.
+export function ukTimeOfDayHalfHourEarlier(dateString) {
+  const date = new Date(dateString);
+  date.setMinutes(date.getMinutes() - 30);
+  return ukTimeOfDay(date.toISOString());
+}
+
 export function getTimeHalfHourLater(dateString) {
   const date = new Date(dateString);
   date.setMinutes(date.getMinutes() + 30);

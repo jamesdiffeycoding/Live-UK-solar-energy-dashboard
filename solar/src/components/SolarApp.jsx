@@ -19,6 +19,7 @@ import {
   ukDayKey,
   ukFractionalHour,
   ukTimeOfDay,
+  ukTimeOfDayHalfHourEarlier,
 } from "@/app/timeAndDateHelpers.js";
 import { formatPowerWithUnit } from "@/app/powerFormat";
 
@@ -165,18 +166,37 @@ const NIGHT_NOTE_FROM = 0.6;
 // feed's own first and last generating half hours, not an almanac. Rounded to
 // the half hour it is published on, so the figures are approximate and are
 // labelled as such.
+//
+// Only days the range actually covers end to end are answered for. The range
+// runs from this time of day a week ago to right now, so its oldest day is
+// missing its morning and its newest day has not had its evening yet: on those,
+// the first and last readings that happen to be in the window are the window's
+// edges rather than the sun's, which is how a summer day came to claim an
+// 11:00 sunrise. A day qualifies only if it has a reading either side of its
+// own generating hours — dark before, dark after — which is exactly what being
+// covered end to end looks like from inside the data.
 function daylightHoursByDay(data) {
   const days = new Map();
 
   data.forEach((row) => {
-    if (row[2] <= 0) return;
     const day = ukDayKey(row[1]);
-    const standing = days.get(day);
-    if (standing) standing.last = row[1];
-    else days.set(day, { first: row[1], last: row[1] });
+    const standing = days.get(day) ?? { darkBefore: false, darkAfter: false };
+    if (!days.has(day)) days.set(day, standing);
+
+    if (row[2] > 0) {
+      standing.last = row[1];
+      if (!standing.first) standing.first = row[1];
+    } else if (standing.first) standing.darkAfter = true;
+    else standing.darkBefore = true;
   });
 
-  return days;
+  const covered = new Map();
+  days.forEach((day, key) => {
+    if (day.first && day.darkBefore && day.darkAfter)
+      covered.set(key, { first: day.first, last: day.last });
+  });
+
+  return covered;
 }
 
 // A reading from between the readings. PVLive publishes on the half hour, so a
@@ -369,10 +389,15 @@ export default function SolarApp({ views, availableRanges }) {
     [activeView]
   );
   const tonight = nightness >= NIGHT_NOTE_FROM ? daylightHours.get(sunDay) : null;
+  // Both times are the half hour a reading covers rather than the stamp it
+  // carries: generation began somewhere inside the first lit half hour and
+  // stopped inside the last, so sunrise is quoted from the start of the one and
+  // sunset from the end of the other. Quoting the stamps instead put both
+  // figures half an hour late, which is how sunset read as 22:00.
   const nightNote = tonight
-    ? `Sunrise ~${ukTimeOfDay(tonight.first)} · Sunset ~${getTimeHalfHourLater(
-        tonight.last
-      )}`
+    ? `Sunrise ~${ukTimeOfDayHalfHourEarlier(
+        tonight.first
+      )} · Sunset ~${ukTimeOfDay(tonight.last)}`
     : null;
 
   // Held in a ref as well as in state so the frame loop can drive the sky
