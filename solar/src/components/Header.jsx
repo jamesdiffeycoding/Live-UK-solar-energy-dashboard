@@ -9,7 +9,11 @@ const rangeLabels = { week: "7 days", month: "30 days", year: "365 days" };
 // Both corners sit on the same smoked panel as the landing card. Without one
 // the small print was near-black on the sky, which reads at noon and disappears
 // at dusk; the panel is what lets every line stay light at any hour.
-const PANEL = "rounded-2xl bg-slate-900/45 px-4 py-3 backdrop-blur-sm";
+// Both corners are for the middle breakpoint only: narrower than that there is
+// no room beside the graph, and wider than that they crowd the sky the hero is
+// meant to fill.
+const PANEL =
+  "hidden rounded-2xl bg-slate-900/45 px-4 py-3 backdrop-blur-sm md:block lg:hidden";
 
 export default function Header({ views, availableRanges, visible = true }) {
   const [faqOpen, setFaqOpen] = useState(false);
@@ -19,8 +23,11 @@ export default function Header({ views, availableRanges, visible = true }) {
   // not been shown yet, and the peak figures are a crib for the question
   // itself. Faded rather than unmounted, so the page assembles around the
   // answer instead of popping in.
+  // The animation covers the case the transition cannot: arriving with the
+  // question already dealt with, where opacity never changes and the panels
+  // would otherwise be there from the first frame.
   const reveal = `transition-opacity duration-700 ${
-    visible ? "opacity-100" : "pointer-events-none opacity-0"
+    visible ? "opacity-100 md:animate-fade" : "pointer-events-none opacity-0"
   }`;
 
   return (
