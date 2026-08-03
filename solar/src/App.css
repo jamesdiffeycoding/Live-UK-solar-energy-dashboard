@@ -14,8 +14,14 @@ html {
   scroll-behavior: smooth;
 }
 
+/* dvh rather than vh, with vh left in for anything that does not know the
+   unit. On a phone, vh is measured against the browser chrome retracted, so a
+   stop was taller than the screen showing it: the bottom of each one sat under
+   the address bar, and mandatory snapping meant scrolling to reach it just
+   pulled the next stop into place instead. */
 .snapStop {
   height: 100vh;
+  height: 100dvh;
   scroll-snap-align: start;
   scroll-snap-stop: always;
 }
@@ -26,6 +32,7 @@ html {
   position: fixed;
   top: 0;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   margin: 0;
   background-image: linear-gradient(
@@ -45,6 +52,7 @@ html {
   position: fixed;
   top: 0;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   margin: 0;
   z-index: -25;
@@ -71,6 +79,7 @@ html {
 
 .customContainer {
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   margin: 0;
 }

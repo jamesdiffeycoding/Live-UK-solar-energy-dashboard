@@ -609,20 +609,33 @@ export default function SolarApp({ views, availableRanges }) {
       </section>
 
       {/* Apart from the landing panel the stops carry no backdrop: they exist
-          to give the scroller something to snap to. The panel is anchored near
-          the top rather than centred: centred, it would grow in both directions
-          when the answer opens and carry the question up the screen with it. */}
+          to give the scroller something to snap to. Where there is the height
+          for it the panel is anchored near the top rather than centred:
+          centred, it would grow in both directions when the answer opens and
+          carry the question up the screen with it.
+          Below that height the offset was costing more than it bought. A fixed
+          160px above the panel on a landscape phone started it a third of the
+          way down and pushed its own buttons off the bottom, so on a shallow
+          screen it is centred instead — nothing else is on screen at this stop
+          to be pushed into, since the header and the graph's controls both stay
+          out until the question has been dealt with.
+          The centring is done with an auto margin rather than items-center:
+          when the panel is taller than the screen even so, auto margins
+          collapse and it stays top-aligned and scrollable, where items-center
+          would have cut off its head. */}
       <div
         className="snapStop relative z-50 flex items-start justify-center
-          overflow-y-auto px-6 pb-16 pt-40 sm:pt-36"
+          overflow-y-auto px-6 py-6 tall:pb-16 tall:pt-36"
         data-stop="0"
         ref={(node) => (stopRefs.current[0] = node)}
       >
-        <Landing
-          headline={headline}
-          onAdvance={advance}
-          onAnswered={() => setQuestionAnswered(true)}
-        />
+        <div className="my-auto w-full max-w-xl tall:my-0">
+          <Landing
+            headline={headline}
+            onAdvance={advance}
+            onAnswered={() => setQuestionAnswered(true)}
+          />
+        </div>
       </div>
       <div
         className="snapStop"

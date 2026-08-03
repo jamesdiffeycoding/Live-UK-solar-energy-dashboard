@@ -88,17 +88,30 @@ const columns = [
     cell: (info) => numberFormatter.format(Math.round(info.getValue())),
     meta: { numeric: true },
   }),
+  // Both of these are the generation column restated against something else, so
+  // they are the two to drop on a phone: five columns of nowrap figures do not
+  // fit a 320px screen, and a table you have to drag sideways to read is worse
+  // than one that answers the main question in the width available. The export
+  // is unaffected — it always writes every column.
   columnHelper.accessor("percentOfPeak", {
     header: "% of period peak",
     cell: (info) => `${info.getValue().toFixed(1)}%`,
-    meta: { numeric: true },
+    meta: { numeric: true, secondary: true },
   }),
   columnHelper.accessor("homes", {
     header: "Homes powered",
     cell: (info) => numberFormatter.format(Math.round(info.getValue())),
-    meta: { numeric: true },
+    meta: { numeric: true, secondary: true },
   }),
 ];
+
+// Held out of the table's own column visibility so there is no resize listener
+// and no second source of truth about the width: the cells are always rendered
+// and the stylesheet decides whether they are shown.
+const columnClasses = (meta) =>
+  `${meta?.numeric ? "text-right" : "text-left"} ${
+    meta?.secondary ? "hidden sm:table-cell" : ""
+  }`;
 
 const CSV_COLUMNS = [
   ["timestamp_utc", (r) => r.iso],
@@ -350,11 +363,9 @@ export default function DataTable({ dataToDisplay, peakValue, range }) {
                 <th
                   key={header.id}
                   onClick={header.column.getToggleSortingHandler()}
-                  className={`cursor-pointer select-none border-b border-slate-600 px-2 py-2 hover:text-yellow-500 ${
-                    header.column.columnDef.meta?.numeric
-                      ? "text-right"
-                      : "text-left"
-                  }`}
+                  className={`cursor-pointer select-none border-b
+                    border-slate-600 px-2 py-2 hover:text-yellow-500
+                    ${columnClasses(header.column.columnDef.meta)}`}
                   aria-sort={
                     { asc: "ascending", desc: "descending" }[
                       header.column.getIsSorted()
@@ -395,11 +406,8 @@ export default function DataTable({ dataToDisplay, peakValue, range }) {
               {row.getVisibleCells().map((cell) => (
                 <td
                   key={cell.id}
-                  className={`whitespace-nowrap px-2 py-1 tabular-nums ${
-                    cell.column.columnDef.meta?.numeric
-                      ? "text-right"
-                      : "text-left"
-                  }`}
+                  className={`whitespace-nowrap px-2 py-1 tabular-nums
+                    ${columnClasses(cell.column.columnDef.meta)}`}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>

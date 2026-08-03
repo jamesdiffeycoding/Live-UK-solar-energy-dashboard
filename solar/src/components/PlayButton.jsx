@@ -8,7 +8,9 @@ const KNOB =
   "disabled:pointer-events-none disabled:opacity-30";
 
 // Sits in the gap the header leaves between the title block and the peak
-// figures, so it reads as page furniture rather than as part of either.
+// figures, so it reads as page furniture rather than as part of either. On a
+// phone the ranges have that gap instead, so this drops below them: both were
+// centred at the top of the screen and landed on each other.
 export default function PlayButton({
   playing,
   onToggle,
@@ -20,7 +22,10 @@ export default function PlayButton({
   nightNote,
 }) {
   return (
-    <div className="fixed left-1/2 top-8 z-50 flex -translate-x-1/2 flex-col items-center gap-2">
+    <div
+      className="fixed left-1/2 top-14 z-50 flex -translate-x-1/2 flex-col
+        items-center gap-2 sm:top-8"
+    >
       <div className="flex items-center gap-2">
       {/* Speed is only a question once something is moving, so the pair is not
           there to be reasoned about beforehand. Minus on the left and plus on
