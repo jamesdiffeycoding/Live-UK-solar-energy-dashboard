@@ -565,8 +565,8 @@ export default function SolarApp({ views, availableRanges }) {
       {/* Sits with the graph on the first stop, and only while the user is
           actually doing something. */}
       <section
-        className={`flex w-full items-end justify-between gap-4 pl-9 pr-9 fixed bottom-[37%] z-50
-          transition-opacity ${
+        className={`fixed bottom-[37%] z-50 flex w-full items-end justify-between
+          gap-2 px-4 transition-opacity sm:gap-4 sm:px-9 ${
             controlsVisible ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
         style={{
@@ -581,6 +581,7 @@ export default function SolarApp({ views, availableRanges }) {
           graphToDisplay={graphToDisplay}
           handleDisplay={handleDisplay}
           availableRanges={availableRanges}
+          dimmed={playing}
         />
         <BarHoveredInformation
           barHovered={barHovered}

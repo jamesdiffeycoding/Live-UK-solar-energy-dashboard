@@ -17,10 +17,16 @@ export default function BarHoveredInformation({
     // level. A run labels each frame as a single moment, which is the shorter
     // of the two captions; a hovered bar carries a half-hour span as well and
     // wants the room.
+    // The minimum widths start small and only open up once there is a screen to
+    // open them on: held at 10rem on a 320px phone the panel could not fit
+    // beside the selector, and being a flex item with a floor it pushed itself
+    // off the right of the screen rather than shrinking.
     <section
-      className={`rounded-2xl bg-slate-900/45 px-3 py-2 text-right text-xs
-        tabular-nums backdrop-blur-sm sm:text-xs md:text-base ${
-          compact ? "min-w-[6rem] md:min-w-[10rem]" : "min-w-[10rem] md:min-w-[14rem]"
+      className={`max-w-full rounded-2xl bg-slate-900/45 px-3 py-2 text-right
+        text-xs tabular-nums backdrop-blur-sm sm:text-xs md:text-base ${
+          compact
+            ? "min-w-[5rem] sm:min-w-[6rem] md:min-w-[10rem]"
+            : "min-w-[7rem] sm:min-w-[10rem] md:min-w-[14rem]"
         }`}
     >
       <p className="text-slate-300">{barHoveredInformation} </p>
